@@ -54,6 +54,8 @@
     padding: 14px 18px; border-radius: 16px;
     border: 1px solid rgba(201,164,99,.35); background: rgba(255,255,255,.04);
   }
+  .agenda .min { flex: none; width: 48px; height: 48px; border-radius: 50%; background: #fff; }
+  .agenda .info { flex: 1; min-width: 0; }
   .agenda .dia { display: block; color: var(--destaque); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
   .agenda strong { display: block; font-weight: 600; font-size: 16px; margin-top: 2px; }
   .agenda small { display: block; color: var(--texto-suave); font-size: 13px; margin-top: 2px; }
@@ -115,11 +117,32 @@
 <script>
   // PLANILHA: precisa estar compartilhada como "Qualquer pessoa com o link pode ver".
   // As colunas são achadas pelo nome do cabeçalho (a ordem não importa):
-  //   Data ou Dia | Horário ou Hora | Evento | Local ou Obs | ✓ (marcado = concluído, some do site)
+  //   Data ou Dia | Horário ou Hora | Evento | Local ou Obs | Ministério | ✓ (marcado = concluído, some do site)
   // Eventos com data (dd/mm) que já passou somem sozinhos.
   const PLANILHA_ID = "1W-44JHBbi8hxsPrDh14T-W76qqavTwYkMUBf5EdHcVQ";
   const PLANILHA_CSV = `https://docs.google.com/spreadsheets/d/${PLANILHA_ID}/gviz/tq?tqx=out:csv`;
   const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+  // Coluna Ministério -> logo. A primeira palavra-chave encontrada no nome vence;
+  // vazio ou desconhecido (ex.: "Cura Nossa Terra") usa o logo da igreja.
+  const LOGOS = [
+    { chaves: ["jove"], img: "img/jovens.webp" },
+    { chaves: ["louvor"], img: "img/louvor.webp" },
+    { chaves: ["danca"], img: "img/danca.webp" },
+    { chaves: ["infantil", "kids", "semente", "crianca"], img: "img/infantil.webp" },
+    { chaves: ["midia", "comunica"], img: "img/midia.webp" },
+  ];
+  const LOGO_IGREJA = "img/igreja.webp";
+  function logoDo(ministerio) {
+    const n = normalizar(ministerio);
+    return (LOGOS.find((l) => l.chaves.some((c) => n.includes(c))) || {}).img || LOGO_IGREJA;
+  }
+
+  // "15:00" -> "15h", "19:30" -> "19h30" (outros formatos ficam como estão)
+  function formatarHora(texto) {
+    const m = texto.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    return m ? `${Number(m[1])}h${m[2] === "00" ? "" : m[2]}` : texto;
+  }
 
   const lista = document.getElementById("agenda");
   const aviso = document.getElementById("aviso");
@@ -162,6 +185,7 @@
       hora: achar("hor"),
       evento: achar("evento"),
       obs: achar("local", "obs"),
+      ministerio: achar("minist"),
     };
   }
 
@@ -199,23 +223,28 @@
             hora: pegar(l, col.hora),
             evento: pegar(l, col.evento),
             obs: pegar(l, col.obs),
+            ministerio: pegar(l, col.ministerio),
           };
         })
         .filter((e) => e.evento && !e.feito && !(e.data && e.data < hoje))
-        // com data primeiro, em ordem; sem data (ex.: "Domingo") mantém a ordem da planilha
-        .sort((a, b) => (a.data && b.data ? a.data - b.data : !a.data - !b.data));
+        // com data primeiro, em ordem (mesmo dia: por horário); sem data (ex.: "Domingo") mantém a ordem da planilha
+        .sort((a, b) => (a.data && b.data ? a.data - b.data || a.hora.localeCompare(b.hora, "pt", { numeric: true }) : !a.data - !b.data));
 
       if (!eventos.length) {
         aviso.textContent = "Nenhum evento na agenda no momento.";
         return;
       }
-      for (const { dia, hora, evento, obs } of eventos) {
+      for (const { dia, hora, evento, obs, ministerio } of eventos) {
         const li = document.createElement("li");
-        const info = document.createElement("div");
+        const logo = document.createElement("img");
+        logo.className = "min";
+        logo.src = logoDo(ministerio);
+        logo.alt = ministerio ? "Ministério " + ministerio : "Cura Nossa Terra";
+        const info = criar("div", "info", "");
         if (dia) info.append(criar("span", "dia", dia));
         info.append(criar("strong", "", evento));
         if (obs) info.append(criar("small", "", obs));
-        li.append(info, criar("span", "hora", hora));
+        li.append(logo, info, criar("span", "hora", formatarHora(hora)));
         lista.append(li);
       }
       aviso.textContent = "";
