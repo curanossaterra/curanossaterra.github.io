@@ -54,7 +54,10 @@
     padding: 14px 18px; border-radius: 16px;
     border: 1px solid rgba(201,164,99,.35); background: rgba(255,255,255,.04);
   }
-  .agenda .min { flex: none; width: 48px; height: 48px; border-radius: 50%; background: #fff; }
+  .agenda .min {
+    flex: none; width: 40px; height: 40px; object-fit: contain;
+    border-radius: 8px; background: #fff; box-shadow: 0 0 0 1px rgba(201,164,99,.5);
+  }
   .agenda .info { flex: 1; min-width: 0; }
   .agenda .dia { display: block; color: var(--destaque); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
   .agenda strong { display: block; font-weight: 600; font-size: 16px; margin-top: 2px; }
