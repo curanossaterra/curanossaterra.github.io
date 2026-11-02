@@ -144,6 +144,7 @@ function horarioDoCulto(c) {
   const barra = document.createElement("a");
   barra.className = "aovivo";
   barra.href = LINK_AO_VIVO;
+  barra.dataset.clique = "Barra ao vivo";
   barra.hidden = true;
   const faixa = document.createElement("div");
   faixa.className = "faixa";
@@ -221,4 +222,25 @@ function horarioDoCulto(c) {
   carregarEventosAoVivo();
   setInterval(atualizar, 60000); // confere a cada minuto (quem deixou a página aberta)
   setInterval(carregarEventosAoVivo, 15 * 60000); // e relê a planilha a cada 15 min
+})();
+
+// ---------------------------------------------------------------------------
+// CONTAGEM DE VISITAS E CLIQUES (GoatCounter: sem cookies, sem aviso de LGPD).
+// Painel: https://curanossaterra.goatcounter.com
+// Para contar o clique de um botão ou link, basta pôr nele: data-clique="Nome que aparece no painel".
+// Não conta quando o site é aberto no próprio computador (só no endereço publicado).
+(function contagem() {
+  if (location.hostname !== "curanossaterra.github.io") return;
+  const script = document.createElement("script");
+  script.async = true;
+  script.src = "https://gc.zgo.at/count.js";
+  script.dataset.goatcounter = "https://curanossaterra.goatcounter.com/count";
+  document.head.append(script);
+
+  document.addEventListener("click", (ev) => {
+    const alvo = ev.target.closest("[data-clique]");
+    // window.goatcounter só existe depois que o script carregou (e não existe se um bloqueador barrar)
+    if (!alvo || !window.goatcounter || !window.goatcounter.count) return;
+    window.goatcounter.count({ path: alvo.dataset.clique, title: alvo.dataset.clique, event: true });
+  });
 })();

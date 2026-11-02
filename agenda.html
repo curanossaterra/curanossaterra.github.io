@@ -151,7 +151,7 @@
 </head>
 <body>
 <main>
-  <a class="voltar" href="index.html">&larr; Voltar</a>
+  <a class="voltar" href="index.html" data-clique="Agenda: Voltar">&larr; Voltar</a>
 
   <span class="logo"><img alt="Cura Nossa Terra" src="img/igreja.webp"></span>
 
@@ -178,8 +178,8 @@
       <button class="fechar" id="bannerFechar" type="button" aria-label="Fechar">&times;</button>
     </div>
     <div class="acoes">
-      <a class="inscrever" id="bannerInscrever" target="_blank" rel="noopener">Quero me inscrever</a>
-      <button class="compartilhar" id="bannerCompartilhar" type="button">
+      <a class="inscrever" id="bannerInscrever" data-clique="Inscrição" target="_blank" rel="noopener">Quero me inscrever</a>
+      <button class="compartilhar" id="bannerCompartilhar" type="button" data-clique="Compartilhar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
         Compartilhar
       </button>
@@ -244,6 +244,7 @@
       const live = document.createElement("a");
       live.className = "live";
       live.href = LINK_AO_VIVO;
+      live.dataset.clique = "Agenda: Ao vivo " + c.nome;
       live.innerHTML = YOUTUBE_SVG + "Ao vivo no YouTube";
       info.append(live);
     }
@@ -350,6 +351,7 @@
         if (aovivo) {
           const live = document.createElement("a");
           live.className = "live";
+          live.dataset.clique = "Agenda: Ao vivo " + evento;
           live.href = LINK_AO_VIVO;
           live.innerHTML = YOUTUBE_SVG + "Ao vivo no YouTube";
           live.addEventListener("click", (ev) => ev.stopPropagation()); // não abre o "Saiba mais"
@@ -361,6 +363,7 @@
           li.className = "tem-banner";
           li.tabIndex = 0;
           li.setAttribute("role", "button");
+          li.dataset.clique = "Saiba mais: " + evento;
           li.addEventListener("click", () => abrirBanner(e));
           li.addEventListener("keydown", (ev) => {
             if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); abrirBanner(e); }
@@ -404,6 +407,8 @@
     document.getElementById("bannerTitulo").textContent = e.evento;
     janelaInscrever.hidden = !e.inscricao;
     janelaInscrever.href = e.inscricao || "#";
+    janelaInscrever.dataset.clique = "Inscrição: " + e.evento;
+    document.getElementById("bannerCompartilhar").dataset.clique = "Compartilhar: " + e.evento;
     janelaStatus.textContent = "";
     janela.showModal();
   }
