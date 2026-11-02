@@ -172,8 +172,8 @@
 <script>
   // PLANILHA: precisa estar compartilhada como "Qualquer pessoa com o link pode ver".
   // As colunas são achadas pelo nome do cabeçalho (a ordem não importa):
-  //   Data ou Dia | Horário ou Hora | Evento | Local ou Obs | Ministério | Banner | Inscrição
-  // Eventos somem sozinhos no dia seguinte à data. A coluna ✓ da planilha é ignorada.
+  //   Data ou Dia | Horário ou Hora | Evento | Local ou Obs | Ministério | Banner | Inscrição | ✓
+  // Evento marcado com ✓ some na hora; o que não estiver marcado some sozinho no dia seguinte à data.
   // Banner: link de compartilhamento de uma imagem no Google Drive
   // (o arquivo precisa estar como "Qualquer pessoa com o link pode ver").
   // Inscrição: link de um formulário (ex.: Google Forms) -> botão "Quero me inscrever".
@@ -247,6 +247,7 @@
     const nomes = cabecalho.map(normalizar);
     const achar = (...chaves) => nomes.findIndex((n) => chaves.some((c) => n.includes(c)));
     return {
+      feito: achar("✓", "conclu"),
       dia: achar("data", "dia"),
       hora: achar("hor"),
       evento: achar("evento"),
@@ -285,6 +286,7 @@
           const dia = pegar(l, col.dia);
           const data = lerData(dia);
           return {
+            feito: pegar(l, col.feito).toUpperCase() === "TRUE",
             dia: data ? `${DIAS_SEMANA[data.getDay()]}, ${dia}` : dia,
             data,
             hora: pegar(l, col.hora),
@@ -296,7 +298,7 @@
             inscricao: /^https?:\/\//i.test(pegar(l, col.inscricao)) ? pegar(l, col.inscricao) : "",
           };
         })
-        .filter((e) => e.evento && !(e.data && e.data < hoje))
+        .filter((e) => e.evento && !e.feito && !(e.data && e.data < hoje))
         // com data primeiro, em ordem (mesmo dia: por horário); sem data (ex.: "Domingo") mantém a ordem da planilha
         .sort((a, b) => (a.data && b.data ? a.data - b.data || a.hora.localeCompare(b.hora, "pt", { numeric: true }) : !a.data - !b.data));
 
