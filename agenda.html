@@ -74,13 +74,21 @@
     display: block; width: min(88vw, 420px); max-height: 70vh; object-fit: contain;
     border-radius: 12px; background: var(--fundo-2);
   }
-  .banner .acoes { display: flex; justify-content: center; margin-top: 14px; }
-  .banner .compartilhar {
-    display: inline-flex; align-items: center; gap: 8px; padding: 14px 24px;
-    border: 0; border-radius: 999px; cursor: pointer;
-    background: var(--destaque); color: var(--botao-texto);
+  .banner .cartao {
+    width: min(88vw, 420px); padding: 28px 24px; border-radius: 12px;
+    background: var(--fundo-2); border: 1px solid rgba(201,164,99,.35);
+  }
+  .banner .cartao .dia { display: block; color: var(--destaque); font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+  .banner .cartao strong { display: block; font-size: 20px; font-weight: 600; margin-top: 4px; }
+  .banner .acoes { display: grid; gap: 10px; margin-top: 14px; }
+  .banner .inscrever, .banner .compartilhar {
+    display: flex; justify-content: center; align-items: center; gap: 8px; padding: 14px 24px;
+    border: 0; border-radius: 999px; cursor: pointer; text-decoration: none;
+    background: var(--botao); color: var(--botao-texto);
     font: 600 17px/1.2 inherit; font-family: inherit;
   }
+  .banner .inscrever { background: var(--destaque); }
+  .banner [hidden] { display: none; }
   .banner .compartilhar svg { width: 20px; height: 20px; }
   .banner .status { margin-top: 8px; min-height: 18px; text-align: center; font-size: 13px; color: var(--texto-suave); }
   .banner .fechar {
@@ -141,12 +149,15 @@
     <p class="aviso" id="aviso" role="status">Carregando agenda…</p>
   </section>
 
-  <dialog class="banner" id="banner" aria-label="Banner do evento">
+  <dialog class="banner" id="banner" aria-label="Detalhes do evento">
     <div class="quadro">
       <img id="bannerImg" alt="">
+      <!-- sem banner: mostra nome e data do evento no lugar da imagem -->
+      <div class="cartao" id="bannerCartao"><span class="dia" id="bannerDia"></span><strong id="bannerTitulo"></strong></div>
       <button class="fechar" id="bannerFechar" type="button" aria-label="Fechar">&times;</button>
     </div>
     <div class="acoes">
+      <a class="inscrever" id="bannerInscrever" target="_blank" rel="noopener">Quero me inscrever</a>
       <button class="compartilhar" id="bannerCompartilhar" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
         Compartilhar
@@ -161,10 +172,12 @@
 <script>
   // PLANILHA: precisa estar compartilhada como "Qualquer pessoa com o link pode ver".
   // As colunas são achadas pelo nome do cabeçalho (a ordem não importa):
-  //   Data ou Dia | Horário ou Hora | Evento | Local ou Obs | Ministério | Banner | ✓ (marcado = concluído, some do site)
-  // Eventos com data (dd/mm) que já passou somem sozinhos.
+  //   Data ou Dia | Horário ou Hora | Evento | Local ou Obs | Ministério | Banner | Inscrição
+  // Eventos somem sozinhos no dia seguinte à data. A coluna ✓ da planilha é ignorada.
   // Banner: link de compartilhamento de uma imagem no Google Drive
   // (o arquivo precisa estar como "Qualquer pessoa com o link pode ver").
+  // Inscrição: link de um formulário (ex.: Google Forms) -> botão "Quero me inscrever".
+  // Evento com banner ou inscrição ganha o "Saiba mais" e abre a janela de detalhes.
   const PLANILHA_ID = "1W-44JHBbi8hxsPrDh14T-W76qqavTwYkMUBf5EdHcVQ";
   const PLANILHA_CSV = `https://docs.google.com/spreadsheets/d/${PLANILHA_ID}/gviz/tq?tqx=out:csv`;
   const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -234,13 +247,13 @@
     const nomes = cabecalho.map(normalizar);
     const achar = (...chaves) => nomes.findIndex((n) => chaves.some((c) => n.includes(c)));
     return {
-      feito: achar("✓", "conclu"),
       dia: achar("data", "dia"),
       hora: achar("hor"),
       evento: achar("evento"),
       obs: achar("local", "obs"),
       ministerio: achar("minist"),
       banner: achar("banner"),
+      inscricao: achar("inscri", "formul"),
     };
   }
 
@@ -272,7 +285,6 @@
           const dia = pegar(l, col.dia);
           const data = lerData(dia);
           return {
-            feito: pegar(l, col.feito).toUpperCase() === "TRUE",
             dia: data ? `${DIAS_SEMANA[data.getDay()]}, ${dia}` : dia,
             data,
             hora: pegar(l, col.hora),
@@ -280,9 +292,11 @@
             obs: pegar(l, col.obs),
             ministerio: pegar(l, col.ministerio),
             banner: linkDaImagem(pegar(l, col.banner)),
+            // só aceita link de site (evita texto solto virar link quebrado)
+            inscricao: /^https?:\/\//i.test(pegar(l, col.inscricao)) ? pegar(l, col.inscricao) : "",
           };
         })
-        .filter((e) => e.evento && !e.feito && !(e.data && e.data < hoje))
+        .filter((e) => e.evento && !(e.data && e.data < hoje))
         // com data primeiro, em ordem (mesmo dia: por horário); sem data (ex.: "Domingo") mantém a ordem da planilha
         .sort((a, b) => (a.data && b.data ? a.data - b.data || a.hora.localeCompare(b.hora, "pt", { numeric: true }) : !a.data - !b.data));
 
@@ -291,7 +305,7 @@
         return;
       }
       for (const e of eventos) {
-        const { dia, hora, evento, obs, ministerio, banner } = e;
+        const { dia, hora, evento, obs, ministerio, banner, inscricao } = e;
         const li = document.createElement("li");
         const logo = document.createElement("img");
         logo.className = "min";
@@ -301,9 +315,9 @@
         if (dia) info.append(criar("span", "dia", dia));
         info.append(criar("strong", "", evento));
         if (obs) info.append(criar("small", "", obs));
-        if (banner) {
-          // evento com banner vira clicável
-          info.append(criar("span", "ver", "Ver banner ›"));
+        if (banner || inscricao) {
+          // evento com banner ou inscrição vira clicável
+          info.append(criar("span", "ver", "Saiba mais ›"));
           li.className = "tem-banner";
           li.tabIndex = 0;
           li.setAttribute("role", "button");
@@ -322,23 +336,34 @@
   }
   carregar();
 
-  // BANNER: abre ampliado, com botão de compartilhar
+  // SAIBA MAIS: banner ampliado (ou nome do evento), inscrição e compartilhar
   const janela = document.getElementById("banner");
   const janelaImg = document.getElementById("bannerImg");
+  const janelaCartao = document.getElementById("bannerCartao");
+  const janelaInscrever = document.getElementById("bannerInscrever");
   const janelaStatus = document.getElementById("bannerStatus");
   let eventoAberto = null;
   let bannerBaixando = null;
 
   function abrirBanner(e) {
     eventoAberto = e;
-    // já baixa a imagem ao abrir: no iPhone o compartilhar precisa acontecer logo após o toque
-    bannerBaixando = fetch(e.banner).then((r) => {
-      if (!r.ok) throw new Error(r.status);
-      return r.blob();
-    });
-    bannerBaixando.catch(() => {});
-    janelaImg.src = e.banner;
-    janelaImg.alt = "Banner: " + e.evento;
+    bannerBaixando = null;
+    if (e.banner) {
+      // já baixa a imagem ao abrir: no iPhone o compartilhar precisa acontecer logo após o toque
+      bannerBaixando = fetch(e.banner).then((r) => {
+        if (!r.ok) throw new Error(r.status);
+        return r.blob();
+      });
+      bannerBaixando.catch(() => {});
+      janelaImg.src = e.banner;
+      janelaImg.alt = "Banner: " + e.evento;
+    }
+    janelaImg.hidden = !e.banner;
+    janelaCartao.hidden = !!e.banner;
+    document.getElementById("bannerDia").textContent = [e.dia, formatarHora(e.hora)].filter(Boolean).join(" · ");
+    document.getElementById("bannerTitulo").textContent = e.evento;
+    janelaInscrever.hidden = !e.inscricao;
+    janelaInscrever.href = e.inscricao || "#";
     janelaStatus.textContent = "";
     janela.showModal();
   }
@@ -350,9 +375,19 @@
   document.getElementById("bannerCompartilhar").addEventListener("click", async () => {
     const e = eventoAberto;
     const quando = [e.dia, formatarHora(e.hora)].filter(Boolean).join(" às ");
-    const texto = `${e.evento}${quando ? " | " + quando : ""}\nCura Nossa Terra`;
+    const texto = `${e.evento}${quando ? " | " + quando : ""}\nCura Nossa Terra`
+      + (e.inscricao ? `\nInscreva-se: ${e.inscricao}` : "");
     const link = location.href.split("#")[0];
     try {
+      if (!bannerBaixando) {
+        // sem banner: compartilha só o texto com os links
+        if (navigator.share) await navigator.share({ title: e.evento, text: texto, url: link });
+        else {
+          await navigator.clipboard.writeText(`${texto}\n${link}`);
+          janelaStatus.textContent = "Informações copiadas. É só colar e enviar!";
+        }
+        return;
+      }
       janelaStatus.textContent = "Preparando…";
       const blob = await bannerBaixando;
       const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
