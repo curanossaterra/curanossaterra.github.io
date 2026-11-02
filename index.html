@@ -73,7 +73,6 @@
   .btn.principal { background: var(--destaque); font-size: 21px; }
   a:focus-visible, button:focus-visible { outline: 3px solid var(--destaque); outline-offset: 3px; }
 
-  .recebedor { margin-top: -4px; font-size: 13px; color: var(--texto-suave); }
   .pix { margin-top: 10px; font-size: 14px; color: var(--texto-suave); min-height: 20px; }
 
   .pastores { margin-top: 32px; font-size: 13px; line-height: 1.6; color: var(--texto-suave); }
@@ -122,8 +121,7 @@
 
   <div class="links">
     <!-- PIX: troque a chave abaixo pela chave PIX da igreja -->
-    <button class="btn principal" id="btnPix" data-chave="11952899333">Ofertar com alegria (copiar PIX)</button>
-    <p class="recebedor">PIX (celular) · Atalia de Souza Amaral</p>
+    <button class="btn principal" id="btnPix" data-chave="11952899333" data-recebedor="Atalia de Souza Amaral">Ofertar com alegria (copiar PIX)</button>
     <p class="pix" id="avisoPix" role="status"></p>
 
     <a class="btn" href="https://docs.google.com/forms/d/e/1FAIpQLSdv2flLq5oHFn-FSYD41l4pHjgcTqEilIFmrFfUhEcWoCb7-A/viewform?usp=publish-editor">Quero ser Membro</a>
@@ -167,9 +165,9 @@ Criado com dedicação, criatividade e tecnologia.</footer>
     const chave = btn.dataset.chave;
     try {
       await navigator.clipboard.writeText(chave);
-      aviso.textContent = "Chave PIX copiada: " + chave;
+      aviso.textContent = `Chave PIX copiada: ${chave} · ${btn.dataset.recebedor}`;
     } catch {
-      aviso.textContent = "Chave PIX: " + chave;
+      aviso.textContent = `Chave PIX: ${chave} · ${btn.dataset.recebedor}`;
     }
   });
 
