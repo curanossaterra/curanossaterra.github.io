@@ -116,11 +116,11 @@
   }
   .cultos strong { font-weight: 600; font-size: 16px; }
   .cultos small { display: block; color: var(--texto-suave); font-size: 13px; margin-top: 2px; }
-  .cultos .live {
+  .cultos .live, .agenda .live {
     display: flex; width: fit-content; align-items: center; gap: 5px; margin-top: 6px;
     color: #ff4e45; font-size: 12px; font-weight: 600; text-decoration: none;
   }
-  .cultos .live svg { width: 16px; height: 16px; }
+  .cultos .live svg, .agenda .live svg { width: 16px; height: 16px; }
   .cultos .hora { color: var(--destaque); font-weight: 800; font-size: 16px; white-space: nowrap; }
   h2 { font-size: 20px; font-weight: 600; margin-bottom: 16px; }
   .eventos { margin-top: 36px; }
@@ -179,7 +179,8 @@
 <script>
   // PLANILHA: precisa estar compartilhada como "Qualquer pessoa com o link pode ver".
   // As colunas são achadas pelo nome do cabeçalho (a ordem não importa):
-  //   Data ou Dia | Horário ou Hora | Evento | Local ou Obs | Ministério | Banner | Inscrição | ✓
+  //   Data ou Dia | Horário ou Hora | Evento | Local ou Obs | Ministério | Banner | Inscrição | Ao vivo | ✓
+  // Ao vivo: marcado (caixinha, "sim" ou "x") = mostra "Ao vivo no YouTube" e liga a barra vermelha da página principal.
   // Evento marcado com ✓ some na hora; o que não estiver marcado some sozinho no dia seguinte à data.
   // Banner: link de compartilhamento de uma imagem no Google Drive
   // (o arquivo precisa estar como "Qualquer pessoa com o link pode ver").
@@ -188,6 +189,7 @@
   const PLANILHA_ID = "1W-44JHBbi8hxsPrDh14T-W76qqavTwYkMUBf5EdHcVQ";
   const PLANILHA_CSV = `https://docs.google.com/spreadsheets/d/${PLANILHA_ID}/gviz/tq?tqx=out:csv`;
   const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+  const YOUTUBE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23 7.2a3 3 0 0 0-2.1-2.1C19 4.6 12 4.6 12 4.6s-7 0-8.9.5A3 3 0 0 0 1 7.2 31 31 0 0 0 .5 12a31 31 0 0 0 .5 4.8 3 3 0 0 0 2.1 2.1c1.9.5 8.9.5 8.9.5s7 0 8.9-.5a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .5-4.8 31 31 0 0 0-.5-4.8zM9.8 15.1V8.9l5.4 3.1-5.4 3.1z"/></svg>';
   const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -264,6 +266,7 @@
       ministerio: achar("minist"),
       banner: achar("banner"),
       inscricao: achar("inscri", "formul"),
+      aovivo: achar("ao vivo", "transmi"),
     };
   }
 
@@ -305,6 +308,7 @@
             banner: linkDaImagem(pegar(l, col.banner)),
             // só aceita link de site (evita texto solto virar link quebrado)
             inscricao: /^https?:\/\//i.test(pegar(l, col.inscricao)) ? pegar(l, col.inscricao) : "",
+            aovivo: /^(true|sim|s|x|✓)$/i.test(pegar(l, col.aovivo)),
           };
         })
         .filter((e) => e.evento && !e.feito && !(e.data && e.data < hoje))
@@ -326,7 +330,7 @@
             mesAnterior = mes;
           }
         }
-        const { dia, hora, evento, obs, ministerio, banner, inscricao } = e;
+        const { dia, hora, evento, obs, ministerio, banner, inscricao, aovivo } = e;
         const li = document.createElement("li");
         const logo = document.createElement("img");
         logo.className = "min";
@@ -336,6 +340,14 @@
         if (dia) info.append(criar("span", "dia", dia));
         info.append(criar("strong", "", evento));
         if (obs) info.append(criar("small", "", obs));
+        if (aovivo) {
+          const live = document.createElement("a");
+          live.className = "live";
+          live.href = "https://www.youtube.com/@CuraNossaTerra/live";
+          live.innerHTML = YOUTUBE_SVG + "Ao vivo no YouTube";
+          live.addEventListener("click", (ev) => ev.stopPropagation()); // não abre o "Saiba mais"
+          info.append(live);
+        }
         if (banner || inscricao) {
           // evento com banner ou inscrição vira clicável
           info.append(criar("span", "ver", "Saiba mais ›"));
