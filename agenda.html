@@ -66,6 +66,12 @@
   .agenda li.tem-banner { cursor: pointer; }
   .agenda li.tem-banner:active { transform: scale(.98); }
   .agenda li.tem-banner:focus-visible { outline: 3px solid var(--destaque); outline-offset: 3px; }
+  .agenda li.ano {
+    display: flex; align-items: center; gap: 12px; padding: 14px 0 2px;
+    border: 0; background: none; border-radius: 0;
+    color: var(--destaque); font-size: 18px; font-weight: 800;
+  }
+  .agenda li.ano::after { content: ""; flex: 1; height: 1px; background: rgba(201,164,99,.35); }
   .agenda .ver { display: block; color: var(--destaque); font-size: 12px; font-weight: 600; margin-top: 4px; }
 
   .banner { margin: auto; border: 0; padding: 0; background: none; overflow: visible; color: var(--texto); }
@@ -306,7 +312,14 @@
         aviso.textContent = "Nenhum evento na agenda no momento.";
         return;
       }
+      // eventos de anos seguintes ganham um título com o ano ("2027") antes deles
+      let anoAnterior = hoje.getFullYear();
       for (const e of eventos) {
+        const ano = e.data && e.data.getFullYear();
+        if (ano && ano !== anoAnterior) {
+          lista.append(criar("li", "ano", String(ano)));
+          anoAnterior = ano;
+        }
         const { dia, hora, evento, obs, ministerio, banner, inscricao } = e;
         const li = document.createElement("li");
         const logo = document.createElement("img");
