@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Painel | Cura Nossa Terra</title>
+<!-- página interna: fora do Google e sem link no site -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0f1a2b">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="apple-touch-icon" href="img/icone-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fundo: #0f1a2b;
+    --fundo-2: #1b2f4d;
+    --cartao: #16253b;
+    --botao: #f2ead8;
+    --botao-texto: #0f1a2b;
+    --texto: #f2ead8;
+    --texto-suave: #aebbd0;
+    --linha: rgba(201,164,99,.25);
+    --destaque: #c9a463;
+    --erro: #ff8a80;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: radial-gradient(120% 60% at 50% 0%, var(--fundo-2), var(--fundo) 70%);
+    background-color: var(--fundo);
+    color: var(--texto);
+    padding: calc(env(safe-area-inset-top, 0px) + 24px) 16px calc(env(safe-area-inset-bottom, 0px) + 40px);
+    min-height: 100vh;
+  }
+  main { max-width: 960px; margin: 0 auto; }
+  button, input { font-family: inherit; }
+  button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid var(--destaque); outline-offset: 2px; }
+
+  header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  header img { width: 48px; height: 48px; border-radius: 50%; background: #fff; }
+  header h1 { font-size: 22px; font-weight: 800; line-height: 1.2; }
+  header p { color: var(--texto-suave); font-size: 14px; }
+  header .acoes { margin-left: auto; display: flex; gap: 8px; }
+
+  .link-suave {
+    background: none; border: 1px solid var(--linha); color: var(--texto-suave);
+    border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none;
+  }
+  .link-suave:hover { color: var(--texto); }
+
+  /* filtros: uma linha só, acima de tudo */
+  .periodos { display: flex; gap: 8px; flex-wrap: wrap; margin: 24px 0 18px; }
+  .periodos button {
+    border: 1px solid var(--linha); background: transparent; color: var(--texto);
+    border-radius: 999px; padding: 10px 16px; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  .periodos button[aria-pressed="true"] { background: var(--destaque); border-color: var(--destaque); color: var(--botao-texto); }
+
+  .conteudo { transition: opacity .2s; }
+  .conteudo.carregando { opacity: .45; }
+
+  .numeros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .numero { background: var(--cartao); border: 1px solid var(--linha); border-radius: 16px; padding: 16px; }
+  .numero span { display: block; color: var(--texto-suave); font-size: 13px; font-weight: 600; }
+  .numero strong { display: block; font-size: 34px; font-weight: 800; margin-top: 4px; line-height: 1.1; }
+  .numero small { display: block; color: var(--texto-suave); font-size: 12px; margin-top: 4px; }
+
+  .cartao { background: var(--cartao); border: 1px solid var(--linha); border-radius: 16px; padding: 18px; margin-top: 14px; }
+  .cartao h2 { font-size: 17px; font-weight: 600; }
+  .cartao .sub { color: var(--texto-suave); font-size: 13px; margin-top: 2px; }
+  .grade-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grade-2 .cartao { margin-top: 14px; }
+
+  /* gráfico de visitas por dia */
+  .grafico { position: relative; margin-top: 16px; }
+  .grafico svg { display: block; width: 100%; height: 220px; overflow: visible; }
+  .grafico .grade { stroke: rgba(174,187,208,.15); stroke-width: 1; }
+  .grafico .eixo { fill: var(--texto-suave); font-size: 11px; }
+  .grafico .barra { fill: var(--destaque); }
+  .grafico .alvo { fill: transparent; cursor: pointer; }
+  .grafico .alvo:hover + .barra, .grafico .alvo:focus + .barra { fill: #e2c48d; }
+  .grafico .alvo:focus { outline: none; }
+  .dica {
+    position: absolute; pointer-events: none; transform: translate(-50%, -100%);
+    background: var(--botao); color: var(--botao-texto); border-radius: 8px; padding: 6px 10px;
+    font-size: 12px; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,.35);
+  }
+  .dica strong { font-size: 15px; font-weight: 800; margin-right: 4px; }
+  .dica[hidden] { display: none; }
+
+  /* listas com barrinha (ranking) */
+  .ranking { list-style: none; margin-top: 12px; display: grid; gap: 10px; }
+  .ranking li { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline; font-size: 14px; }
+  .ranking .nome { overflow-wrap: anywhere; }
+  .ranking .valor { font-weight: 800; }
+  .ranking .trilho { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: rgba(174,187,208,.12); }
+  .ranking .trilho i { display: block; height: 100%; border-radius: 3px; background: var(--destaque); min-width: 4px; }
+  .grupo { margin-top: 16px; color: var(--destaque); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+  .vazio { color: var(--texto-suave); font-size: 14px; margin-top: 12px; }
+
+  /* tela da chave */
+  .chave { max-width: 560px; margin: 40px auto 0; }
+  .chave ol { margin: 14px 0 0 20px; color: var(--texto-suave); font-size: 15px; line-height: 1.6; }
+  .chave ol strong { color: var(--texto); }
+  .chave form { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+  .chave input {
+    flex: 1; min-width: 200px; padding: 14px 16px; border-radius: 12px;
+    border: 1px solid var(--linha); background: var(--fundo); color: var(--texto); font-size: 15px;
+  }
+  .chave button, .principal {
+    padding: 14px 22px; border: 0; border-radius: 999px; cursor: pointer;
+    background: var(--destaque); color: var(--botao-texto); font-size: 15px; font-weight: 600;
+  }
+  .erro { color: var(--erro); font-size: 14px; margin-top: 12px; }
+  [hidden] { display: none !important; }
+
+  @media (max-width: 720px) {
+    .numeros { grid-template-columns: 1fr 1fr; }
+    .numero strong { font-size: 28px; }
+    .grade-2 { grid-template-columns: 1fr; gap: 0; }
+    header .acoes { margin-left: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { .conteudo { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="img/igreja.webp" alt="">
+    <div>
+      <h1>Painel do site</h1>
+      <p>Visitas e cliques de curanossaterra.github.io</p>
+    </div>
+    <div class="acoes" id="acoes" hidden>
+      <a class="link-suave" href="https://curanossaterra.goatcounter.com" target="_blank" rel="noopener">Painel completo</a>
+      <button class="link-suave" id="sair" type="button">Sair deste aparelho</button>
+    </div>
+  </header>
+
+  <!-- 1ª vez: pede a chave de acesso (fica guardada só neste aparelho) -->
+  <section class="chave" id="telaChave" hidden>
+    <div class="cartao">
+      <h2>Chave de acesso</h2>
+      <p class="sub">É pedida só uma vez em cada aparelho. Para criar:</p>
+      <ol>
+        <li>Entre em <strong>curanossaterra.goatcounter.com</strong></li>
+        <li>Clique em <strong>Settings</strong> (Configurações) → <strong>API</strong></li>
+        <li>Clique em <strong>New API token</strong>, marque só <strong>Read statistics</strong> e salve</li>
+        <li>Copie a chave e cole abaixo</li>
+      </ol>
+      <form id="formChave">
+        <input id="campoChave" type="password" autocomplete="off" placeholder="Cole a chave aqui" aria-label="Chave de acesso" required>
+        <button type="submit">Entrar</button>
+      </form>
+      <p class="erro" id="erroChave" role="alert"></p>
+    </div>
+  </section>
+
+  <section id="telaPainel" hidden>
+    <div class="periodos" role="group" aria-label="Período">
+      <button type="button" data-periodo="hoje">Hoje</button>
+      <button type="button" data-periodo="7">7 dias</button>
+      <button type="button" data-periodo="30">30 dias</button>
+      <button type="button" data-periodo="mes">Este mês</button>
+      <button type="button" data-periodo="ano">Este ano</button>
+    </div>
+    <p class="erro" id="erroPainel" role="alert"></p>
+
+    <div class="conteudo" id="conteudo">
+      <div class="numeros">
+        <div class="numero"><span>Visitas ao site</span><strong id="nVisitas">–</strong><small>pessoas no período</small></div>
+        <div class="numero"><span>Página principal</span><strong id="nPrincipal">–</strong><small>visitas</small></div>
+        <div class="numero"><span>Agenda</span><strong id="nAgenda">–</strong><small>visitas</small></div>
+        <div class="numero"><span>Cliques</span><strong id="nCliques">–</strong><small>em botões e links</small></div>
+      </div>
+
+      <div class="cartao">
+        <h2 id="tituloGrafico">Visitas por dia</h2>
+        <div class="grafico" id="grafico"></div>
+      </div>
+
+      <div class="grade-2">
+        <div class="cartao">
+          <h2>Cliques</h2>
+          <p class="sub">O que as pessoas mais tocaram</p>
+          <div id="cliques"></div>
+        </div>
+        <div>
+          <div class="cartao">
+            <h2>De onde vieram</h2>
+            <p class="sub">Por onde chegaram ao site</p>
+            <div id="origens"></div>
+          </div>
+          <div class="cartao">
+            <h2>Aparelhos</h2>
+            <div id="aparelhos"></div>
+          </div>
+          <div class="cartao">
+            <h2>Cidades e estados</h2>
+            <div id="locais"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const API = "https://curanossaterra.goatcounter.com/api/v0";
+  const CHAVE_SALVA = "painel-goatcounter-chave";
+
+  // localStorage pode falhar (aba anônima, bloqueio): o painel funciona igual, só pede a chave de novo
+  const guardar = {
+    ler() { try { return localStorage.getItem(CHAVE_SALVA) || ""; } catch { return ""; } },
+    salvar(v) { try { localStorage.setItem(CHAVE_SALVA, v); } catch {} },
+    apagar() { try { localStorage.removeItem(CHAVE_SALVA); } catch {} },
+  };
+  let chave = guardar.ler();
+  let periodo = "7";
+
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => Number(n || 0).toLocaleString("pt-BR");
+  // a API pede data e hora completas, "redondas" na hora (ex.: 2026-11-02T03:00:00Z)
+  const horaISO = (d) => d.toISOString().replace(/\.\d{3}Z$/, "Z");
+
+  function intervalo(p) {
+    const agora = new Date();
+    const inicio = new Date(agora);
+    inicio.setHours(0, 0, 0, 0); // meia-noite daqui
+    if (p === "7") inicio.setDate(inicio.getDate() - 6);
+    else if (p === "30") inicio.setDate(inicio.getDate() - 29);
+    else if (p === "mes") inicio.setDate(1);
+    else if (p === "ano") inicio.setMonth(0, 1);
+    const fim = new Date(agora);
+    fim.setMinutes(0, 0, 0);
+    fim.setHours(fim.getHours() + 1); // até o fim da hora atual
+    return { start: horaISO(inicio), end: horaISO(fim) };
+  }
+
+  class ChaveInvalida extends Error {}
+
+  // uma chamada por vez (a API limita chamadas seguidas); tenta de novo se pedir para esperar
+  async function api(caminho, params = {}) {
+    const url = new URL(API + caminho);
+    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+    for (let tentativa = 0; tentativa < 3; tentativa++) {
+      const resp = await fetch(url, { headers: { Authorization: "Bearer " + chave, "Content-Type": "application/json" } });
+      if (resp.status === 401 || resp.status === 403) throw new ChaveInvalida();
+      if (resp.status === 429) { await new Promise((r) => setTimeout(r, 1500)); continue; }
+      if (!resp.ok) throw new Error(resp.status);
+      return resp.json();
+    }
+    throw new Error("limite");
+  }
+
+  // ---------- desenho ----------
+  function criar(tag, classe, texto) {
+    const el = document.createElement(tag);
+    if (classe) el.className = classe;
+    if (texto !== undefined) el.textContent = texto;
+    return el;
+  }
+
+  function ranking(lista, itens, vazio) {
+    const alvo = typeof lista === "string" ? $(lista) : lista;
+    alvo.replaceChildren();
+    if (!itens.length) { alvo.append(criar("p", "vazio", vazio)); return; }
+    const max = Math.max(...itens.map((i) => i.valor), 1);
+    const ul = criar("ul", "ranking");
+    for (const i of itens) {
+      const li = document.createElement("li");
+      const trilho = criar("span", "trilho");
+      const barra = document.createElement("i");
+      barra.style.width = (i.valor / max) * 100 + "%";
+      trilho.append(barra);
+      li.append(criar("span", "nome", i.nome), criar("span", "valor", fmt(i.valor)), trilho);
+      ul.append(li);
+    }
+    alvo.append(ul);
+  }
+
+  const SVG = "http://www.w3.org/2000/svg";
+  function svg(tag, attrs) {
+    const el = document.createElementNS(SVG, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  }
+
+  // barras de visitas (por dia, ou por hora quando o período é "hoje")
+  let ultimosPontos = [];
+  // girou o celular ou mudou o tamanho da janela: redesenha na nova largura
+  addEventListener("resize", () => { if (ultimosPontos.length) grafico(ultimosPontos); });
+
+  function grafico(pontos) {
+    ultimosPontos = pontos;
+    const caixa = $("grafico");
+    caixa.replaceChildren();
+    // desenha na largura real da tela (assim as letras não ficam espremidas no celular)
+    const W = Math.max(caixa.clientWidth, 280), H = 220, esq = 34, base = 196, topo = 12;
+    const max = Math.max(...pontos.map((p) => p.valor), 1);
+    // escala "redonda" para as linhas de grade
+    const passo = Math.pow(10, Math.floor(Math.log10(max)));
+    const teto = Math.ceil(max / passo) * passo || 1;
+    const el = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": $("tituloGrafico").textContent });
+    for (const f of [0, 0.5, 1]) {
+      const y = base - (base - topo) * f;
+      el.append(svg("line", { class: "grade", x1: esq, x2: W, y1: y, y2: y }));
+      const t = svg("text", { class: "eixo", x: esq - 6, y: y + 4, "text-anchor": "end" });
+      t.textContent = fmt(Math.round(teto * f));
+      el.append(t);
+    }
+    const largura = (W - esq) / pontos.length;
+    const gap = Math.min(largura * 0.25, 6);
+    const dica = criar("div", "dica");
+    dica.hidden = true;
+    const rotuloCada = Math.ceil(pontos.length / Math.max(Math.floor(W / 60), 2)); // datas sem encavalar
+    pontos.forEach((p, i) => {
+      const x = esq + i * largura + gap / 2;
+      const w = Math.max(largura - gap, 1);
+      const h = p.valor ? Math.max(((base - topo) * p.valor) / teto, 2) : 0;
+      // alvo invisível da altura toda: fácil de tocar mesmo em barra baixa
+      const alvo = svg("rect", { class: "alvo", x: esq + i * largura, y: topo, width: largura, height: base - topo, tabindex: 0 });
+      alvo.setAttribute("aria-label", `${p.rotulo}: ${fmt(p.valor)} visitas`);
+      // barra com topo arredondado (4px) apoiada na base
+      const r = Math.min(4, w / 2, h);
+      const d = h ? `M${x},${base} V${base - h + r} Q${x},${base - h} ${x + r},${base - h} H${x + w - r} Q${x + w},${base - h} ${x + w},${base - h + r} V${base} Z` : "";
+      const barra = svg("path", { class: "barra", d });
+      const mostrar = () => {
+        dica.replaceChildren(criar("strong", "", fmt(p.valor)), document.createTextNode(`visitas · ${p.rotulo}`));
+        dica.style.left = Math.min(Math.max(x + w / 2, 70), W - 70) + "px";
+        dica.style.top = (base - h - 6) + "px";
+        dica.hidden = false;
+      };
+      const esconder = () => { dica.hidden = true; };
+      alvo.addEventListener("pointerenter", mostrar);
+      alvo.addEventListener("focus", mostrar);
+      alvo.addEventListener("pointerleave", esconder);
+      alvo.addEventListener("blur", esconder);
+      el.append(alvo, barra);
+      if (i % rotuloCada === 0) {
+        const t = svg("text", { class: "eixo", x: x + w / 2, y: H - 6, "text-anchor": "middle" });
+        t.textContent = p.curto;
+        el.append(t);
+      }
+    });
+    caixa.append(el, dica);
+  }
+
+  // ---------- dados ----------
+  const APARELHOS = {
+    phone: "Celular", largephone: "Celular", tablet: "Tablet",
+    desktop: "Computador", desktophd: "Computador", unknown: "Não identificado",
+  };
+  // grupos de cliques, pelo começo do nome (data-clique no site)
+  const GRUPOS = [
+    { titulo: "Página principal", teste: (n) => /^(Botão|Barra ao vivo)/.test(n) },
+    { titulo: "Redes sociais", teste: (n) => n.startsWith("Rede:") },
+    { titulo: "Ministérios", teste: (n) => n.startsWith("Ministério:") },
+    { titulo: "Agenda", teste: () => true },
+  ];
+
+  async function carregar() {
+    const { start, end } = intervalo(periodo);
+    $("conteudo").classList.add("carregando");
+    $("erroPainel").textContent = "";
+    try {
+      const total = await api("/stats/total", { start, end });
+      const hits = await api("/stats/hits", { start, end, limit: 100 });
+      const origens = await api("/stats/toprefs", { start, end, limit: 8 });
+      const tamanhos = await api("/stats/sizes", { start, end });
+      const locais = await api("/stats/locations", { start, end, limit: 8 });
+
+      // números do topo
+      const paginas = (hits.hits || []).filter((h) => !h.event);
+      const eventos = (hits.hits || []).filter((h) => h.event);
+      const somar = (lista) => lista.reduce((s, h) => s + (h.count || 0), 0);
+      $("nVisitas").textContent = fmt(total.total);
+      $("nPrincipal").textContent = fmt(somar(paginas.filter((h) => h.path === "/" || h.path === "/index.html")));
+      $("nAgenda").textContent = fmt(somar(paginas.filter((h) => h.path.startsWith("/agenda"))));
+      $("nCliques").textContent = fmt(total.total_events ?? somar(eventos));
+
+      // gráfico
+      const dias = total.stats || [];
+      let pontos;
+      if (periodo === "hoje") {
+        $("tituloGrafico").textContent = "Visitas por hora (hoje)";
+        const horas = (dias[dias.length - 1] || {}).hourly || new Array(24).fill(0);
+        pontos = horas.map((v, h) => ({ valor: v, rotulo: `${h}h às ${h + 1}h`, curto: `${h}h` }));
+      } else {
+        $("tituloGrafico").textContent = "Visitas por dia";
+        pontos = dias.map((d) => {
+          const [a, m, dd] = d.day.split("-");
+          return { valor: d.daily, rotulo: `${dd}/${m}/${a}`, curto: `${dd}/${m}` };
+        });
+      }
+      grafico(pontos);
+
+      // cliques agrupados
+      const caixa = $("cliques");
+      caixa.replaceChildren();
+      if (!eventos.length) caixa.append(criar("p", "vazio", "Nenhum clique registrado neste período."));
+      const restantes = eventos.map((e) => ({ nome: e.path, valor: e.count })).sort((a, b) => b.valor - a.valor);
+      for (const g of GRUPOS) {
+        const doGrupo = restantes.filter((e) => !e.usado && g.teste(e.nome));
+        doGrupo.forEach((e) => { e.usado = true; });
+        if (!doGrupo.length) continue;
+        caixa.append(criar("p", "grupo", g.titulo));
+        // nome sem o prefixo repetido ("Botão: Agenda" -> "Agenda")
+        const lista = document.createElement("div");
+        caixa.append(lista);
+        ranking(lista, doGrupo.map((e) => ({ nome: e.nome.replace(/^(Botão|Rede|Ministério): /, ""), valor: e.valor })), "");
+      }
+
+      ranking("origens", (origens.stats || []).map((o) => ({ nome: o.name || "Direto (link salvo ou digitado)", valor: o.count })),
+        "Ainda sem dados neste período.");
+
+      const porAparelho = {};
+      for (const s of tamanhos.stats || []) {
+        const nome = APARELHOS[s.id] || s.name || "Outro";
+        porAparelho[nome] = (porAparelho[nome] || 0) + s.count;
+      }
+      ranking("aparelhos", Object.entries(porAparelho).map(([nome, valor]) => ({ nome, valor })).sort((a, b) => b.valor - a.valor),
+        "Ainda sem dados neste período.");
+
+      ranking("locais", (locais.stats || []).map((l) => ({ nome: l.name || "Não identificado", valor: l.count })),
+        "Sem dados. Para ver cidades, ligue a coleta de local em Settings no GoatCounter.");
+    } catch (erro) {
+      if (erro instanceof ChaveInvalida) { sair("Chave inválida ou sem permissão. Crie uma chave com “Read statistics”."); return; }
+      $("erroPainel").textContent = "Não foi possível carregar os números agora. Tente novamente em instantes.";
+    } finally {
+      $("conteudo").classList.remove("carregando");
+    }
+  }
+
+  // ---------- telas ----------
+  function mostrarPainel() {
+    $("telaChave").hidden = true;
+    $("telaPainel").hidden = false;
+    $("acoes").hidden = false;
+    marcarPeriodo();
+    carregar();
+  }
+
+  function sair(mensagem) {
+    chave = "";
+    guardar.apagar();
+    $("telaPainel").hidden = true;
+    $("acoes").hidden = true;
+    $("telaChave").hidden = false;
+    $("erroChave").textContent = mensagem || "";
+  }
+
+  function marcarPeriodo() {
+    document.querySelectorAll("[data-periodo]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.periodo === periodo));
+  }
+
+  document.querySelectorAll("[data-periodo]").forEach((b) => b.addEventListener("click", () => {
+    periodo = b.dataset.periodo;
+    marcarPeriodo();
+    carregar();
+  }));
+
+  $("formChave").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    chave = $("campoChave").value.trim();
+    if (!chave) return;
+    guardar.salvar(chave);
+    $("campoChave").value = "";
+    mostrarPainel();
+  });
+
+  $("sair").addEventListener("click", () => sair());
+
+  if (chave) mostrarPainel(); else sair();
+</script>
+</body>
+</html>
