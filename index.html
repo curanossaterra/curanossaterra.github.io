@@ -61,6 +61,24 @@
   .pastores { margin-top: 32px; font-size: 13px; line-height: 1.6; color: var(--texto-suave); }
   .pastores strong { display: block; color: var(--destaque); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
 
+  .lives { margin-top: 40px; }
+  .lives h2 { font-size: 20px; font-weight: 600; margin-bottom: 16px; }
+  .lives[hidden] { display: none; }
+  .lista-lives { list-style: none; display: grid; gap: 18px; text-align: left; }
+  .video {
+    position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; padding: 0;
+    border: 0; border-radius: 14px; overflow: hidden; cursor: pointer; background: #000;
+  }
+  .video img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .video iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .video .play {
+    position: absolute; inset: 0; margin: auto; width: 68px; height: 48px;
+    border-radius: 14px; background: #ff0000; display: grid; place-items: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  }
+  .video .play svg { width: 26px; height: 26px; fill: #fff; }
+  .lista-lives p { margin-top: 8px; font-size: 15px; font-weight: 600; line-height: 1.35; }
+
   .ministerios { margin-top: 40px; }
   .ministerios h2 { font-size: 20px; font-weight: 600; margin-bottom: 16px; }
   .grade { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
@@ -115,6 +133,12 @@
 
   <p class="pastores"><strong>Pastores líderes</strong>Claudionor G. &amp; Atalia de S.</p>
 
+  <!-- ÚLTIMOS CULTOS: lidos do lives.json, que o GitHub atualiza sozinho (.github/workflows/lives.yml) -->
+  <section class="lives" id="lives" hidden>
+    <h2>Últimos cultos ao vivo</h2>
+    <ul class="lista-lives" id="listaLives"></ul>
+  </section>
+
   <!-- MINISTÉRIOS: ao tocar, a logo abre ampliada -->
   <section class="ministerios">
     <h2>Nossos ministérios</h2>
@@ -162,6 +186,52 @@ Criado com dedicação, criatividade e tecnologia.</footer>
   document.getElementById("zoomFechar").addEventListener("click", () => zoom.close());
   // toque fora da imagem também fecha
   zoom.addEventListener("click", (e) => { if (e.target === zoom) zoom.close(); });
+
+  // ÚLTIMOS CULTOS: mostra a capa; o vídeo só carrega quando a pessoa toca (página fica leve)
+  async function carregarLives() {
+    try {
+      const resp = await fetch("lives.json", { cache: "no-cache" });
+      if (!resp.ok) return;
+      const lives = await resp.json();
+      const lista = document.getElementById("listaLives");
+      for (const { id, titulo } of lives) {
+        // "Cura Nossa Terra | Culto da Família - 01/11/2026" -> "Culto da Família - 01/11/2026"
+        const nome = titulo.replace(/^Cura Nossa Terra\s*\|\s*/i, "").replace(/\s{2,}/g, " ");
+        const li = document.createElement("li");
+        const video = document.createElement("button");
+        video.type = "button";
+        video.className = "video";
+        video.setAttribute("aria-label", "Assistir: " + nome);
+        const capa = document.createElement("img");
+        capa.src = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+        capa.alt = "";
+        capa.loading = "lazy";
+        const play = document.createElement("span");
+        play.className = "play";
+        play.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+        video.append(capa, play);
+        video.addEventListener("click", () => {
+          const player = document.createElement("div");
+          player.className = "video";
+          const iframe = document.createElement("iframe");
+          iframe.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`;
+          iframe.title = nome;
+          iframe.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+          iframe.allowFullscreen = true;
+          player.append(iframe);
+          video.replaceWith(player);
+        }, { once: true });
+        const legenda = document.createElement("p");
+        legenda.textContent = nome;
+        li.append(video, legenda);
+        lista.append(li);
+      }
+      if (lives.length) document.getElementById("lives").hidden = false;
+    } catch {
+      // sem lives.json ou fora do ar: a seção simplesmente não aparece
+    }
+  }
+  carregarLives();
 </script>
 </body>
 </html>
