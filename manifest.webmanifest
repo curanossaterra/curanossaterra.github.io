@@ -1,0 +1,14 @@
+{
+  "name": "Cura Nossa Terra",
+  "short_name": "Cura Nossa Terra",
+  "description": "Links oficiais, agenda e cultos ao vivo da igreja Cura Nossa Terra",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f1a2b",
+  "theme_color": "#0f1a2b",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "img/icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "img/icone-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
