@@ -73,6 +73,7 @@
   .btn.principal { background: var(--destaque); font-size: 21px; }
   a:focus-visible, button:focus-visible { outline: 3px solid var(--destaque); outline-offset: 3px; }
 
+  .recebedor { margin-top: -4px; font-size: 13px; color: var(--texto-suave); }
   .pix { margin-top: 10px; font-size: 14px; color: var(--texto-suave); min-height: 20px; }
 
   .pastores { margin-top: 32px; font-size: 13px; line-height: 1.6; color: var(--texto-suave); }
@@ -95,34 +96,10 @@
   }
   .endereco { margin-top: 32px; font-style: normal; font-size: 13px; line-height: 1.6; color: var(--texto-suave); }
   footer { margin-top: 40px; font-size: 13px; color: var(--texto-suave); }
-  .aovivo {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
-    padding-top: env(safe-area-inset-top, 0px);
-    display: block; overflow: hidden; background: #e00000; color: #fff;
-    text-decoration: none; box-shadow: 0 2px 12px rgba(0,0,0,.35);
-  }
-  .aovivo[hidden] { display: none; }
-  .aovivo .faixa { display: flex; width: max-content; animation: passar 40s linear infinite; }
-  .aovivo span {
-    display: inline-flex; align-items: center; gap: 10px; padding: 12px 28px;
-    font-size: 15px; font-weight: 800; letter-spacing: .04em; white-space: nowrap;
-  }
-  .aovivo .ponto { width: 10px; height: 10px; border-radius: 50%; background: #fff; animation: piscar 1s ease-in-out infinite; }
-  @keyframes passar { to { transform: translateX(-50%); } }
-  @keyframes piscar { 50% { opacity: .25; } }
-  body.com-aovivo { padding-top: calc(env(safe-area-inset-top, 0px) + 48px + 46px); }
-
-  @media (prefers-reduced-motion: reduce) {
-    .btn { transition: none; }
-    .aovivo .faixa, .aovivo .ponto { animation: none; }
-  }
+  @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
 </style>
 </head>
 <body>
-<!-- AO VIVO: aparece sozinha nos horários dos cultos (veja HORARIOS_AO_VIVO no fim da página) -->
-<a class="aovivo" id="aovivo" href="https://www.youtube.com/@CuraNossaTerra/live" hidden>
-  <div class="faixa" id="aovivoFaixa"></div>
-</a>
 <main>
   <h1><span class="logo"><img alt="Cura Nossa Terra" src="img/igreja.webp"></span></h1>
   <p class="frase">Que bom ter você aqui. Escolha por onde quer seguir.</p>
@@ -146,6 +123,7 @@
   <div class="links">
     <!-- PIX: troque a chave abaixo pela chave PIX da igreja -->
     <button class="btn principal" id="btnPix" data-chave="11952899333">Ofertar com alegria (copiar PIX)</button>
+    <p class="recebedor">PIX (celular) · Atalia de Souza Amaral</p>
     <p class="pix" id="avisoPix" role="status"></p>
 
     <a class="btn" href="https://docs.google.com/forms/d/e/1FAIpQLSdv2flLq5oHFn-FSYD41l4pHjgcTqEilIFmrFfUhEcWoCb7-A/viewform?usp=publish-editor">Quero ser Membro</a>
@@ -181,6 +159,7 @@
 Criado com dedicação, criatividade e tecnologia.</footer>
 </main>
 
+<script src="comum.js"></script>
 <script>
   const btn = document.getElementById("btnPix");
   const aviso = document.getElementById("avisoPix");
@@ -208,113 +187,6 @@ Criado com dedicação, criatividade e tecnologia.</footer>
   // toque fora da imagem também fecha
   zoom.addEventListener("click", (e) => { if (e.target === zoom) zoom.close(); });
 
-  // AO VIVO: barra vermelha no topo durante os cultos transmitidos.
-  // Duas fontes: os cultos fixos abaixo + os eventos da planilha da agenda com a coluna "Ao vivo" marcada.
-  // dia: 0 = domingo … 6 = sábado. primeiroDomingo: só no 1º domingo do mês.
-  // Aparece 10 min antes do início e fica até 2h30 depois. Para testar: index.html?aovivo=1
-  const HORARIOS_AO_VIVO = [
-    { nome: "Culto da Família", dia: 0, hora: 18, minuto: 0 },
-    { nome: "Santa Ceia", dia: 0, hora: 9, minuto: 0, primeiroDomingo: true },
-  ];
-  const ANTES_MIN = 10, DEPOIS_MIN = 150;
-  let eventosAoVivo = []; // [{ nome, inicio: Date }] vindos da planilha
-
-  function dentroDaJanela(agora, inicio) {
-    const min = (agora - inicio) / 60000;
-    return min >= -ANTES_MIN && min <= DEPOIS_MIN;
-  }
-
-  function cultoAoVivo(agora) {
-    if (new URLSearchParams(location.search).has("aovivo")) return { nome: "Culto" };
-    const fixo = HORARIOS_AO_VIVO.find((c) => {
-      if (c.dia !== agora.getDay()) return false;
-      if (c.primeiroDomingo && agora.getDate() > 7) return false;
-      const inicio = new Date(agora);
-      inicio.setHours(c.hora, c.minuto, 0, 0);
-      return dentroDaJanela(agora, inicio);
-    });
-    return fixo || eventosAoVivo.find((e) => dentroDaJanela(agora, e.inicio));
-  }
-
-  // Mesma planilha da agenda (agenda.html). Colunas achadas pelo nome do cabeçalho.
-  const PLANILHA_CSV = "https://docs.google.com/spreadsheets/d/1W-44JHBbi8hxsPrDh14T-W76qqavTwYkMUBf5EdHcVQ/gviz/tq?tqx=out:csv";
-
-  function lerCSV(texto) {
-    const linhas = [];
-    let linha = [], campo = "", aspas = false;
-    for (let i = 0; i < texto.length; i++) {
-      const c = texto[i];
-      if (aspas) {
-        if (c === '"' && texto[i + 1] === '"') { campo += '"'; i++; }
-        else if (c === '"') aspas = false;
-        else campo += c;
-      } else if (c === '"') aspas = true;
-      else if (c === ",") { linha.push(campo); campo = ""; }
-      else if (c === "\n") { linha.push(campo); linhas.push(linha); linha = []; campo = ""; }
-      else if (c !== "\r") campo += c;
-    }
-    if (campo || linha.length) { linha.push(campo); linhas.push(linha); }
-    return linhas;
-  }
-
-  async function carregarEventosAoVivo() {
-    try {
-      const resp = await fetch(PLANILHA_CSV, { cache: "no-store" });
-      if (!resp.ok) return;
-      const [cabecalho, ...linhas] = lerCSV(await resp.text());
-      const nomes = cabecalho.map((s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase());
-      const achar = (...chaves) => nomes.findIndex((n) => chaves.some((c) => n.includes(c)));
-      const col = {
-        feito: achar("✓", "conclu"), dia: achar("data", "dia"), hora: achar("hor"),
-        evento: achar("evento"), aovivo: achar("ao vivo", "transmi"),
-      };
-      if (col.aovivo < 0) return; // planilha ainda sem a coluna "Ao vivo"
-      const pegar = (l, i) => (i >= 0 ? (l[i] || "").trim() : "");
-      const hoje = new Date();
-
-      eventosAoVivo = linhas.flatMap((l) => {
-        // marcado = caixinha (TRUE) ou texto "sim", "x", "✓"
-        if (!/^(true|sim|s|x|✓)$/i.test(pegar(l, col.aovivo))) return [];
-        if (pegar(l, col.feito).toUpperCase() === "TRUE") return [];
-        const d = pegar(l, col.dia).match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
-        const h = pegar(l, col.hora).match(/^(\d{1,2})(?:[:h](\d{2}))?/i);
-        if (!d || !h) return []; // sem data e horário não dá para saber quando ligar a barra
-        const ano = d[3] ? Number(d[3].length === 2 ? "20" + d[3] : d[3]) : hoje.getFullYear();
-        const inicio = new Date(ano, d[2] - 1, d[1], h[1], h[2] || 0);
-        return [{ nome: pegar(l, col.evento) || "Evento", inicio }];
-      });
-      atualizarAoVivo();
-    } catch {
-      // planilha fora do ar: fica só com os cultos fixos
-    }
-  }
-
-  const barra = document.getElementById("aovivo");
-  function atualizarAoVivo() {
-    const culto = cultoAoVivo(new Date());
-    barra.hidden = !culto;
-    document.body.classList.toggle("com-aovivo", !!culto);
-    if (!culto) return;
-    const frase = `ESTAMOS AO VIVO · ${culto.nome} · Toque para assistir no YouTube`;
-    barra.setAttribute("aria-label", frase);
-    if (barra.dataset.frase === frase) return;
-    barra.dataset.frase = frase;
-    // o texto vai repetido: a animação anda metade da faixa e recomeça sem "pulo"
-    const faixa = document.getElementById("aovivoFaixa");
-    faixa.replaceChildren();
-    for (let i = 0; i < 8; i++) {
-      const item = document.createElement("span");
-      item.setAttribute("aria-hidden", "true");
-      const ponto = document.createElement("i");
-      ponto.className = "ponto";
-      item.append(ponto, frase);
-      faixa.append(item);
-    }
-  }
-  atualizarAoVivo();
-  carregarEventosAoVivo();
-  setInterval(atualizarAoVivo, 60000); // confere a cada minuto (quem deixou a página aberta)
-  setInterval(carregarEventosAoVivo, 15 * 60000); // e relê a planilha a cada 15 min
 </script>
 </body>
 </html>

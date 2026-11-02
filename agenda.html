@@ -39,6 +39,7 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { min-height: 100%; }
   body {
+    --respiro-topo: 32px;
     font-family: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
     background: radial-gradient(120% 60% at 50% 0%, var(--fundo-2), var(--fundo) 70%);
     background-color: var(--fundo);
@@ -157,14 +158,10 @@
   <h1>Agenda</h1>
   <p class="frase">Programe-se e venha com a gente.</p>
 
-  <!-- CULTOS FIXOS: só muda pelo código -->
+  <!-- CULTOS FIXOS: horários ficam no comum.js (CULTOS) -->
   <section class="cultos">
     <h2>Cultos</h2>
-    <ul>
-      <li><div><strong>Culto de Oração</strong></div><span class="hora">SEX 20h</span></li>
-      <li><div><strong>Culto da Família</strong><a class="live" href="https://www.youtube.com/@CuraNossaTerra/live"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23 7.2a3 3 0 0 0-2.1-2.1C19 4.6 12 4.6 12 4.6s-7 0-8.9.5A3 3 0 0 0 1 7.2 31 31 0 0 0 .5 12a31 31 0 0 0 .5 4.8 3 3 0 0 0 2.1 2.1c1.9.5 8.9.5 8.9.5s7 0 8.9-.5a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .5-4.8 31 31 0 0 0-.5-4.8zM9.8 15.1V8.9l5.4 3.1-5.4 3.1z"/></svg>Ao vivo no YouTube</a></div><span class="hora">DOM 18h</span></li>
-      <li><div><strong>Santa Ceia</strong><small>Primeiro domingo do mês</small><a class="live" href="https://www.youtube.com/@CuraNossaTerra/live"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23 7.2a3 3 0 0 0-2.1-2.1C19 4.6 12 4.6 12 4.6s-7 0-8.9.5A3 3 0 0 0 1 7.2 31 31 0 0 0 .5 12a31 31 0 0 0 .5 4.8 3 3 0 0 0 2.1 2.1c1.9.5 8.9.5 8.9.5s7 0 8.9-.5a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .5-4.8 31 31 0 0 0-.5-4.8zM9.8 15.1V8.9l5.4 3.1-5.4 3.1z"/></svg>Ao vivo no YouTube</a></div><span class="hora">DOM 09h</span></li>
-    </ul>
+    <ul id="cultos"></ul>
   </section>
 
   <section class="eventos">
@@ -193,20 +190,18 @@
   <footer>Desenvolvido por Jhow Silva © 2026 | Todos os direitos reservados.</footer>
 </main>
 
+<script src="comum.js"></script>
 <script>
-  // PLANILHA: precisa estar compartilhada como "Qualquer pessoa com o link pode ver".
+  // PLANILHA (endereço e leitura ficam no comum.js).
   // As colunas são achadas pelo nome do cabeçalho (a ordem não importa):
   //   Data ou Dia | Horário ou Hora | Evento | Local ou Obs | Ministério | Banner | Inscrição | Ao vivo | ✓
-  // Ao vivo: marcado (caixinha, "sim" ou "x") = mostra "Ao vivo no YouTube" e liga a barra vermelha da página principal.
+  // Ao vivo: marcado (caixinha, "sim" ou "x") = mostra "Ao vivo no YouTube" e liga a barra vermelha do site.
   // Evento marcado com ✓ some na hora; o que não estiver marcado some sozinho no dia seguinte à data.
   // Banner: link de compartilhamento de uma imagem no Google Drive
   // (o arquivo precisa estar como "Qualquer pessoa com o link pode ver").
   // Inscrição: link de um formulário (ex.: Google Forms) -> botão "Quero me inscrever".
   // Evento com banner ou inscrição ganha o "Saiba mais" e abre a janela de detalhes.
-  const PLANILHA_ID = "1W-44JHBbi8hxsPrDh14T-W76qqavTwYkMUBf5EdHcVQ";
-  const PLANILHA_CSV = `https://docs.google.com/spreadsheets/d/${PLANILHA_ID}/gviz/tq?tqx=out:csv`;
   const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-  const YOUTUBE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23 7.2a3 3 0 0 0-2.1-2.1C19 4.6 12 4.6 12 4.6s-7 0-8.9.5A3 3 0 0 0 1 7.2 31 31 0 0 0 .5 12a31 31 0 0 0 .5 4.8 3 3 0 0 0 2.1 2.1c1.9.5 8.9.5 8.9.5s7 0 8.9-.5a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .5-4.8 31 31 0 0 0-.5-4.8zM9.8 15.1V8.9l5.4 3.1-5.4 3.1z"/></svg>';
   const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -239,27 +234,25 @@
     return m ? `https://lh3.googleusercontent.com/d/${m[1]}=w1600` : texto;
   }
 
+  // CULTOS FIXOS (lista CULTOS no comum.js)
+  for (const c of CULTOS) {
+    const li = document.createElement("li");
+    const info = document.createElement("div");
+    info.append(criar("strong", "", c.nome));
+    if (c.obs) info.append(criar("small", "", c.obs));
+    if (c.aoVivo) {
+      const live = document.createElement("a");
+      live.className = "live";
+      live.href = LINK_AO_VIVO;
+      live.innerHTML = YOUTUBE_SVG + "Ao vivo no YouTube";
+      info.append(live);
+    }
+    li.append(info, criar("span", "hora", horarioDoCulto(c)));
+    document.getElementById("cultos").append(li);
+  }
+
   const lista = document.getElementById("agenda");
   const aviso = document.getElementById("aviso");
-
-  // Lê CSV respeitando campos entre aspas (que podem ter vírgula ou quebra de linha)
-  function lerCSV(texto) {
-    const linhas = [];
-    let linha = [], campo = "", aspas = false;
-    for (let i = 0; i < texto.length; i++) {
-      const c = texto[i];
-      if (aspas) {
-        if (c === '"' && texto[i + 1] === '"') { campo += '"'; i++; }
-        else if (c === '"') aspas = false;
-        else campo += c;
-      } else if (c === '"') aspas = true;
-      else if (c === ",") { linha.push(campo); campo = ""; }
-      else if (c === "\n") { linha.push(campo); linhas.push(linha); linha = []; campo = ""; }
-      else if (c !== "\r") campo += c;
-    }
-    if (campo || linha.length) { linha.push(campo); linhas.push(linha); }
-    return linhas;
-  }
 
   function criar(tag, classe, texto) {
     const el = document.createElement(tag);
@@ -267,8 +260,6 @@
     el.textContent = texto;
     return el;
   }
-
-  const normalizar = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
   // Descobre em qual coluna está cada informação pelo texto do cabeçalho
   function acharColunas(cabecalho) {
@@ -301,9 +292,7 @@
 
   async function carregar() {
     try {
-      const resp = await fetch(PLANILHA_CSV, { cache: "no-store" });
-      if (!resp.ok) throw new Error(resp.status);
-      const [cabecalho, ...linhas] = lerCSV(await resp.text());
+      const [cabecalho, ...linhas] = await lerPlanilha();
       const col = acharColunas(cabecalho);
       const pegar = (l, i) => (i >= 0 ? (l[i] || "").trim() : "");
 
@@ -316,11 +305,12 @@
           const data = lerData(dia);
           return {
             feito: pegar(l, col.feito).toUpperCase() === "TRUE",
-            dia: data ? `${DIAS_SEMANA[data.getDay()]}, ${dia}` : dia,
+            // "Sex, 20/11" (sem o ano: ele já aparece no título do mês)
+            dia: data ? `${DIAS_SEMANA[data.getDay()]}, ${String(data.getDate()).padStart(2, "0")}/${String(data.getMonth() + 1).padStart(2, "0")}` : dia,
             data,
             hora: pegar(l, col.hora),
-            evento: pegar(l, col.evento),
-            obs: pegar(l, col.obs),
+            evento: arrumarTexto(pegar(l, col.evento)), // corrige maiúsculas e acentos (comum.js)
+            obs: arrumarTexto(pegar(l, col.obs)),
             ministerio: pegar(l, col.ministerio),
             banner: linkDaImagem(pegar(l, col.banner)),
             // só aceita link de site (evita texto solto virar link quebrado)
@@ -360,7 +350,7 @@
         if (aovivo) {
           const live = document.createElement("a");
           live.className = "live";
-          live.href = "https://www.youtube.com/@CuraNossaTerra/live";
+          live.href = LINK_AO_VIVO;
           live.innerHTML = YOUTUBE_SVG + "Ao vivo no YouTube";
           live.addEventListener("click", (ev) => ev.stopPropagation()); // não abre o "Saiba mais"
           info.append(live);
