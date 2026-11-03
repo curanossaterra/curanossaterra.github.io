@@ -225,6 +225,64 @@ function horarioDoCulto(c) {
 })();
 
 // ---------------------------------------------------------------------------
+// TEMA CLARO / ESCURO: botão no canto de cima. O escolhido fica salvo no aparelho.
+// (Cada página também tem uma linha no <head> que aplica o tema salvo antes de desenhar, para não piscar.)
+(function tema() {
+  const CHAVE = "tema";
+  const raiz = document.documentElement;
+  const SOL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+  const LUA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
+
+  const estilo = document.createElement("style");
+  estilo.textContent = `
+    html[data-tema="claro"] {
+      --fundo: #f4eee1; --fundo-2: #ffffff;
+      --botao: #0f1a2b; --botao-texto: #f2ead8;
+      --texto: #0f1a2b; --texto-suave: #4a5870;
+      --destaque: #8a6629; /* dourado mais escuro, para ler bem no fundo claro */
+      color-scheme: light;
+    }
+    html[data-tema="claro"] .btn.principal,
+    html[data-tema="claro"] .banner .inscrever { background: #c9a463; color: #0f1a2b; }
+    html[data-tema="claro"] .agenda li:not(.mes),
+    html[data-tema="claro"] .cultos li { background: #fff; box-shadow: 0 1px 3px rgba(15,26,43,.06); }
+    html[data-tema="claro"] .min img { box-shadow: 0 0 0 1px rgba(15,26,43,.12); }
+    html[data-tema="claro"] .cultos .live,
+    html[data-tema="claro"] .agenda .live { color: #c4160c; }
+    .tema {
+      position: absolute; z-index: 5; right: 14px; top: calc(env(safe-area-inset-top, 0px) + 12px);
+      width: 40px; height: 40px; display: grid; place-items: center; padding: 0; cursor: pointer;
+      border-radius: 50%; border: 1px solid rgba(201,164,99,.5); background: transparent; color: var(--texto);
+    }
+    .tema svg { width: 20px; height: 20px; }
+    body.com-aovivo .tema { top: calc(env(safe-area-inset-top, 0px) + 58px); }
+  `;
+  document.head.append(estilo);
+
+  const botao = document.createElement("button");
+  botao.type = "button";
+  botao.className = "tema";
+  document.body.append(botao);
+
+  function aplicar(claro) {
+    if (claro) raiz.dataset.tema = "claro"; else delete raiz.dataset.tema;
+    botao.innerHTML = claro ? LUA : SOL;
+    botao.setAttribute("aria-label", claro ? "Mudar para tema escuro" : "Mudar para tema claro");
+    botao.title = botao.getAttribute("aria-label");
+    botao.dataset.clique = claro ? "Tema: escuro" : "Tema: claro";
+    const cor = document.querySelector('meta[name="theme-color"]');
+    if (cor) cor.content = claro ? "#f4eee1" : "#0f1a2b";
+  }
+
+  aplicar(raiz.dataset.tema === "claro");
+  botao.addEventListener("click", () => {
+    const claro = raiz.dataset.tema !== "claro";
+    aplicar(claro);
+    try { localStorage.setItem(CHAVE, claro ? "claro" : "escuro"); } catch (e) {}
+  });
+})();
+
+// ---------------------------------------------------------------------------
 // CONTAGEM DE VISITAS E CLIQUES (GoatCounter: sem cookies, sem aviso de LGPD).
 // Painel: https://curanossaterra.goatcounter.com
 // Para contar o clique de um botão ou link, basta pôr nele: data-clique="Nome que aparece no painel".

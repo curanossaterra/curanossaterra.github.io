@@ -242,18 +242,18 @@
 
   class ChaveInvalida extends Error {}
 
-  // uma chamada por vez (a API limita chamadas seguidas); tenta de novo se pedir para esperar
+  // uma chamada por vez (a API limita chamadas seguidas); se falhar, espera um pouco e tenta de novo
+  // (a API às vezes responde erro passageiro, por exemplo logo depois de criar a chave)
   async function api(caminho, params = {}) {
     const url = new URL(API + caminho);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     for (let tentativa = 0; tentativa < 3; tentativa++) {
+      if (tentativa) await new Promise((r) => setTimeout(r, 1500));
       const resp = await fetch(url, { headers: { Authorization: "Bearer " + chave, "Content-Type": "application/json" } });
       if (resp.status === 401 || resp.status === 403) throw new ChaveInvalida();
-      if (resp.status === 429) { await new Promise((r) => setTimeout(r, 1500)); continue; }
-      if (!resp.ok) throw new Error(resp.status);
-      return resp.json();
+      if (resp.ok) return resp.json();
     }
-    throw new Error("limite");
+    throw new Error("falhou 3 vezes");
   }
 
   // ---------- desenho ----------
@@ -354,11 +354,24 @@
     phone: "Celular", largephone: "Celular", tablet: "Tablet",
     desktop: "Computador", desktophd: "Computador", unknown: "Não identificado",
   };
+  const PAISES = { Brazil: "Brasil", Portugal: "Portugal", "United States": "Estados Unidos" };
+  // origem como o GoatCounter manda -> nome conhecido ("ig" = link do Instagram)
+  function nomeOrigem(nome) {
+    const n = (nome || "").toLowerCase();
+    if (!n) return "Direto (link salvo, digitado ou app)";
+    if (/^(ig|instagram)$|instagram\./.test(n)) return "Instagram";
+    if (/^(fb|facebook)$|facebook\.|fb\.me/.test(n)) return "Facebook";
+    if (/^(wa|whatsapp)$|whatsapp|wa\.me/.test(n)) return "WhatsApp";
+    if (/youtube|youtu\.be/.test(n)) return "YouTube";
+    if (/google/.test(n)) return "Google";
+    return nome;
+  }
   // grupos de cliques, pelo começo do nome (data-clique no site)
   const GRUPOS = [
     { titulo: "Página principal", teste: (n) => /^(Botão|Barra ao vivo)/.test(n) },
     { titulo: "Redes sociais", teste: (n) => n.startsWith("Rede:") },
     { titulo: "Ministérios", teste: (n) => n.startsWith("Ministério:") },
+    { titulo: "Tema claro/escuro", teste: (n) => n.startsWith("Tema:") },
     { titulo: "Agenda", teste: () => true },
   ];
 
@@ -414,18 +427,18 @@
         ranking(lista, doGrupo.map((e) => ({ nome: e.nome.replace(/^(Botão|Rede|Ministério): /, ""), valor: e.valor })), "");
       }
 
-      ranking("origens", (origens.stats || []).map((o) => ({ nome: o.name || "Direto (link salvo ou digitado)", valor: o.count })),
+      ranking("origens", (origens.stats || []).filter((o) => o.count > 0).map((o) => ({ nome: nomeOrigem(o.name), valor: o.count })),
         "Ainda sem dados neste período.");
 
       const porAparelho = {};
-      for (const s of tamanhos.stats || []) {
+      for (const s of (tamanhos.stats || []).filter((s) => s.count > 0)) {
         const nome = APARELHOS[s.id] || s.name || "Outro";
         porAparelho[nome] = (porAparelho[nome] || 0) + s.count;
       }
       ranking("aparelhos", Object.entries(porAparelho).map(([nome, valor]) => ({ nome, valor })).sort((a, b) => b.valor - a.valor),
         "Ainda sem dados neste período.");
 
-      ranking("locais", (locais.stats || []).map((l) => ({ nome: l.name || "Não identificado", valor: l.count })),
+      ranking("locais", (locais.stats || []).filter((l) => l.count > 0).map((l) => ({ nome: PAISES[l.name] || l.name || "Não identificado", valor: l.count })),
         "Sem dados. Para ver cidades, ligue a coleta de local em Settings no GoatCounter.");
     } catch (erro) {
       if (erro instanceof ChaveInvalida) { sair("Chave inválida ou sem permissão. Crie uma chave com “Read statistics”."); return; }
