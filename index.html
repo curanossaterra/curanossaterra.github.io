@@ -164,11 +164,12 @@ Criado com dedicação, criatividade e tecnologia.</footer>
   const aviso = document.getElementById("avisoPix");
   btn.addEventListener("click", async () => {
     const chave = btn.dataset.chave;
+    const exibir = btn.dataset.exibir || chave;
     try {
       await navigator.clipboard.writeText(chave);
-      aviso.textContent = `Chave PIX copiada: ${chave} · ${btn.dataset.recebedor}`;
+      aviso.textContent = `Chave PIX copiada: ${exibir} · ${btn.dataset.recebedor}`;
     } catch {
-      aviso.textContent = `Chave PIX: ${chave} · ${btn.dataset.recebedor}`;
+      aviso.textContent = `Chave PIX: ${exibir} · ${btn.dataset.recebedor}`;
     }
   });
 
