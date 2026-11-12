@@ -80,7 +80,7 @@ const ACENTOS = {
   deus: "Deus", jesus: "Jesus", cristo: "Cristo", natal: "Natal",
 };
 // nomes escritos sempre do mesmo jeito
-const NOMES_FIXOS = ["Cura Nossa Terra", "Espírito Santo"];
+const NOMES_FIXOS = ["Cura Nossa Terra", "Portal da Cura", "Espírito Santo"];
 
 function arrumarTexto(texto) {
   let t = (texto || "").replace(/\s+/g, " ").trim();

@@ -1,7 +1,7 @@
 {
-  "name": "Cura Nossa Terra",
-  "short_name": "Cura Nossa Terra",
-  "description": "Links oficiais, agenda e cultos ao vivo da igreja Cura Nossa Terra",
+  "name": "Portal da Cura",
+  "short_name": "Portal da Cura",
+  "description": "Portal da Cura: links oficiais, agenda e cultos ao vivo da igreja Cura Nossa Terra",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0f1a2b",
