@@ -74,7 +74,23 @@
   .btn.principal { background: var(--destaque); font-size: 21px; }
   a:focus-visible, button:focus-visible { outline: 3px solid var(--destaque); outline-offset: 3px; }
 
-  .pix { margin-top: 10px; font-size: 14px; color: var(--texto-suave); min-height: 20px; }
+  .pix { margin-top: 12px; font-size: 14px; color: var(--texto-suave); min-height: 20px; }
+
+  /* menu da oferta: copiar chave ou ver o QR Code */
+  .oferta {
+    margin: auto; width: min(90vw, 360px); padding: 28px 20px 20px; overflow: visible;
+    border: 1px solid rgba(201,164,99,.35); border-radius: 20px;
+    background: var(--fundo-2); color: var(--texto); text-align: center;
+  }
+  .oferta::backdrop { background: rgba(0,0,0,.75); }
+  .oferta h2 { font-size: 20px; font-weight: 600; }
+  .oferta .recebedor { margin: 6px 0 20px; font-size: 14px; line-height: 1.5; color: var(--texto-suave); }
+  .oferta .opcoes { display: grid; gap: 12px; }
+  .oferta .btn { padding: 15px 18px; font-size: 17px; }
+  .oferta .qr { margin-top: 18px; }
+  .oferta .qr img { display: block; width: min(62vw, 230px); aspect-ratio: 1; margin: 0 auto; padding: 6px; border-radius: 12px; background: #fff; }
+  .oferta .qr p { margin-top: 10px; font-size: 13px; line-height: 1.5; color: var(--texto-suave); }
+  .oferta .qr a { display: inline-block; margin-top: 8px; color: var(--destaque); font-size: 14px; font-weight: 600; }
 
   .pastores { margin-top: 32px; font-size: 13px; line-height: 1.6; color: var(--texto-suave); }
   .pastores strong { display: block; color: var(--destaque); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
@@ -92,7 +108,7 @@
   .fechar {
     position: absolute; top: -14px; right: -14px; width: 36px; height: 36px;
     border: 0; border-radius: 50%; background: var(--destaque); color: #fff;
-    font: 600 22px/1 inherit; font-family: inherit; cursor: pointer;
+    font-family: inherit; font-weight: 600; font-size: 24px; line-height: 1; cursor: pointer;
   }
   .endereco { margin-top: 32px; font-style: normal; font-size: 13px; line-height: 1.6; color: var(--texto-suave); }
   footer { margin-top: 40px; font-size: 13px; color: var(--texto-suave); }
@@ -121,9 +137,7 @@
   </nav>
 
   <div class="links">
-    <!-- PIX da igreja (CNPJ, conta Cora). data-chave = só números (o que é copiado); data-exibir = como aparece na tela -->
-    <button class="btn principal" id="btnPix" data-clique="Botão: Copiar PIX" data-chave="69973328000190" data-exibir="CNPJ 69.973.328/0001-90" data-recebedor="Igreja Cura Nossa Terra">Ofertar com alegria (copiar PIX)</button>
-    <p class="pix" id="avisoPix" role="status"></p>
+    <button class="btn principal" id="btnOfertar" type="button" data-clique="Botão: Ofertar">Ofertar com alegria (PIX)</button>
 
     <a class="btn" href="https://docs.google.com/forms/d/e/1FAIpQLSdv2flLq5oHFn-FSYD41l4pHjgcTqEilIFmrFfUhEcWoCb7-A/viewform?usp=publish-editor" data-clique="Botão: Quero ser Membro">Quero ser Membro</a>
     <a class="btn" href="https://wa.me/5500000000000" data-clique="Botão: Falar no WhatsApp">Falar no WhatsApp</a>
@@ -152,6 +166,24 @@
     <button class="fechar" id="zoomFechar" type="button" aria-label="Fechar">&times;</button>
   </dialog>
 
+  <!-- PIX da igreja (CNPJ, conta Cora). data-chave = só números (o que é copiado).
+       O QR Code (img/pix-qrcode.png) foi recortado do QR gerado no app da Cora. -->
+  <dialog class="oferta" id="oferta" aria-labelledby="ofertaTitulo">
+    <h2 id="ofertaTitulo">Ofertar com alegria</h2>
+    <p class="recebedor">Igreja Cura Nossa Terra<br>PIX CNPJ 69.973.328/0001-90</p>
+    <div class="opcoes">
+      <button class="btn principal" id="copiarPix" type="button" data-clique="Oferta: Copiar chave" data-chave="69973328000190">Copiar chave PIX</button>
+      <button class="btn" id="verQr" type="button" data-clique="Oferta: Ver QR Code">Ver QR Code</button>
+    </div>
+    <p class="pix" id="avisoPix" role="status"></p>
+    <div class="qr" id="qr" hidden>
+      <img src="img/pix-qrcode.png" alt="QR Code do PIX da Igreja Cura Nossa Terra" loading="lazy">
+      <p>Abra o app do banco, escolha pagar com PIX e leia o código.<br>Está no celular? Salve a imagem e escolha ler da galeria.</p>
+      <a href="img/pix-qrcode.png" download="pix-cura-nossa-terra.png" data-clique="Oferta: Salvar QR Code">Salvar imagem</a>
+    </div>
+    <button class="fechar" id="ofertaFechar" type="button" aria-label="Fechar">&times;</button>
+  </dialog>
+
   <address class="endereco">R. Santo Antônio de Entre Rios, 118 · Jardim Carolina<br>São Paulo/SP · 08151-400</address>
 
   <footer>Desenvolvido por Jhow Silva © 2026 | Todos os direitos reservados.<br>
@@ -160,18 +192,29 @@ Criado com dedicação, criatividade e tecnologia.</footer>
 
 <script src="comum.js"></script>
 <script>
-  const btn = document.getElementById("btnPix");
+  const oferta = document.getElementById("oferta");
   const aviso = document.getElementById("avisoPix");
-  btn.addEventListener("click", async () => {
-    const chave = btn.dataset.chave;
-    const exibir = btn.dataset.exibir || chave;
+  const qr = document.getElementById("qr");
+  document.getElementById("btnOfertar").addEventListener("click", () => {
+    aviso.textContent = "";
+    qr.hidden = true;
+    oferta.showModal();
+  });
+  document.getElementById("copiarPix").addEventListener("click", async (e) => {
+    const chave = e.currentTarget.dataset.chave;
     try {
       await navigator.clipboard.writeText(chave);
-      aviso.textContent = `Chave PIX copiada: ${exibir} · ${btn.dataset.recebedor}`;
+      aviso.textContent = "Chave copiada! Agora é só colar no app do banco.";
     } catch {
-      aviso.textContent = `Chave PIX: ${exibir} · ${btn.dataset.recebedor}`;
+      aviso.textContent = `Chave PIX (CNPJ): ${chave}`;
     }
   });
+  document.getElementById("verQr").addEventListener("click", () => {
+    qr.hidden = false;
+    qr.scrollIntoView({ block: "nearest" });
+  });
+  document.getElementById("ofertaFechar").addEventListener("click", () => oferta.close());
+  oferta.addEventListener("click", (e) => { if (e.target === oferta) oferta.close(); });
 
   const zoom = document.getElementById("zoom");
   const zoomImg = document.getElementById("zoomImg");

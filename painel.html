@@ -369,6 +369,7 @@
   // grupos de cliques, pelo começo do nome (data-clique no site)
   const GRUPOS = [
     { titulo: "Página principal", teste: (n) => /^(Botão|Barra ao vivo)/.test(n) },
+    { titulo: "Ofertas (PIX)", teste: (n) => n.startsWith("Oferta:") },
     { titulo: "Redes sociais", teste: (n) => n.startsWith("Rede:") },
     { titulo: "Ministérios", teste: (n) => n.startsWith("Ministério:") },
     { titulo: "Tema claro/escuro", teste: (n) => n.startsWith("Tema:") },
@@ -424,7 +425,7 @@
         // nome sem o prefixo repetido ("Botão: Agenda" -> "Agenda")
         const lista = document.createElement("div");
         caixa.append(lista);
-        ranking(lista, doGrupo.map((e) => ({ nome: e.nome.replace(/^(Botão|Rede|Ministério): /, ""), valor: e.valor })), "");
+        ranking(lista, doGrupo.map((e) => ({ nome: e.nome.replace(/^(Botão|Rede|Ministério|Oferta|Tema): /, ""), valor: e.valor })), "");
       }
 
       ranking("origens", (origens.stats || []).filter((o) => o.count > 0).map((o) => ({ nome: nomeOrigem(o.name), valor: o.count })),
