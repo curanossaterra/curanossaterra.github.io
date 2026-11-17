@@ -7,12 +7,17 @@
 //  - Equipe, Escala, Disponibilidade e Tarefas -> uma planilha particular, "Portal da Mídia (dados)", criada sozinha no seu Drive.
 //    Ela não é pública: os e-mails da equipe não aparecem para ninguém de fora.
 //    Para criar uma função nova na escala, basta acrescentar uma coluna nela (antes de "Descanso").
+//  - Visitas do site    -> busca no GoatCounter com a chave GOATCOUNTER_CHAVE (abaixo).
 
 // Código do cliente do "Fazer login com o Google" (Google Cloud). Não é segredo: pode ficar aqui.
 const CLIENT_ID = "40038838902-r4jcn68bgja5bs7jb4q13ekur1s69kr3.apps.googleusercontent.com";
 const AGENDA_ID = "1W-44JHBbi8hxsPrDh14T-W76qqavTwYkMUBf5EdHcVQ";
 const FUSO = "America/Sao_Paulo";
 const PASTA_BANNERS = "1DaQeI7zVccO5z1eIeX5PmqsRyU8najSt";
+// Chave do GoatCounter (só "Ler estatísticas"). Atenção: este arquivo é público no GitHub, então quem
+// achar a chave consegue ver os números de visitas. Para escondê-la, crie a propriedade GOATCOUNTER_CHAVE em
+// Configurações do projeto → Propriedades do script: ela vale mais que esta linha.
+const GOATCOUNTER_CHAVE = "hszivhndae8x23l8u0ysh6d0m1fv405l8nj6wi165ai3njsdgq";
 
 // Usado só na primeira vez, para montar a planilha de dados.
 const FUNCOES_INICIAIS = ["Live", "Staff Live / Luzes", "Foto / Vídeo / Postagem", "Telão", "Som"];
@@ -37,7 +42,7 @@ function doPost(e) {
   try {
     const pedido = JSON.parse(e.postData.contents);
     const eu = quemEstaUsando(pedido.token);
-    resposta = executar(pedido, eu);
+    resposta = pedido.acao === "visitas" ? visitas(pedido) : executar(pedido, eu);
   } catch (err) {
     resposta = { erro: err.message, codigo: err.codigo || "" };
   }
@@ -346,6 +351,46 @@ function concluirTarefa(pedido, eu) {
 function removerTarefa(pedido) {
   const { aba, tarefa } = acharTarefa(pedido);
   aba.deleteRow(tarefa.linha);
+}
+
+// ---------------------------------------------------------------------------
+// VISITAS DO SITE (GoatCounter). Qualquer pessoa da equipe pode ver.
+// Guarda a resposta por 5 minutos: abrir e fechar a seção não gasta o limite de consultas do GoatCounter.
+const GOATCOUNTER = "https://curanossaterra.goatcounter.com/api/v0";
+
+function visitas(pedido) {
+  const hora = /^\d{4}-\d{2}-\d{2}T\d{2}:00:00Z$/;
+  if (!hora.test(pedido.start) || !hora.test(pedido.end)) throw falha("Período inválido.");
+  const cache = CacheService.getScriptCache();
+  const chaveCache = `visitas:${pedido.start}:${pedido.end}`;
+  const guardado = cache.get(chaveCache);
+  if (guardado) return JSON.parse(guardado);
+
+  const chave = PropertiesService.getScriptProperties().getProperty("GOATCOUNTER_CHAVE") || GOATCOUNTER_CHAVE;
+  if (!chave) throw falha("Falta a chave do GoatCounter (GOATCOUNTER_CHAVE) no Apps Script.");
+  const periodo = `start=${encodeURIComponent(pedido.start)}&end=${encodeURIComponent(pedido.end)}`;
+  const consultas = {
+    total: `/stats/total?${periodo}`,
+    hits: `/stats/hits?${periodo}&limit=100`,
+    origens: `/stats/toprefs?${periodo}&limit=8`,
+    aparelhos: `/stats/sizes?${periodo}`,
+    locais: `/stats/locations?${periodo}&limit=8`,
+  };
+  const resposta = {};
+  // uma por vez: o GoatCounter recusa muitas consultas juntas. Erro passageiro: espera e tenta de novo.
+  Object.keys(consultas).forEach((nome) => {
+    for (let tentativa = 0; ; tentativa++) {
+      const r = UrlFetchApp.fetch(GOATCOUNTER + consultas[nome], { headers: { Authorization: "Bearer " + chave }, muteHttpExceptions: true });
+      const codigo = r.getResponseCode();
+      if (codigo === 200) { resposta[nome] = JSON.parse(r.getContentText()); break; }
+      if (codigo === 401 || codigo === 403) throw falha("A chave do GoatCounter não vale mais. Troque a GOATCOUNTER_CHAVE no Apps Script.");
+      if (tentativa === 2) throw falha("O GoatCounter não respondeu agora. Tente de novo em instantes.");
+      Utilities.sleep(1500);
+    }
+  });
+  const texto = JSON.stringify(resposta);
+  if (texto.length < 90000) cache.put(chaveCache, texto, 300);
+  return resposta;
 }
 
 // ---------------------------------------------------------------------------

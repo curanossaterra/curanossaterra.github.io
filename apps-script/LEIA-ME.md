@@ -54,6 +54,21 @@ Depois, publique com `git add -A; git commit -m "Portal da Mídia"; git push`.
 3. Faça o mesmo com as outras pessoas, cada uma com o e-mail do Google dela. Só depois disso a pessoa consegue entrar.
 4. Toque em **Sair** e entre de novo com a sua conta pessoal. A partir daí, use sempre ela; a conta da Cura fica de reserva.
 
+## Parte 5: visitas do site (chave do GoatCounter)
+
+A seção **Visitas do site** do portal busca os números no GoatCounter. A chave já está no código (`GOATCOUNTER_CHAVE`, perto do começo do `portal-midia.gs`), então não precisa fazer nada.
+
+Se um dia quiser esconder a chave (o `portal-midia.gs` é público no GitHub), ou trocar por uma nova, use as **Propriedades do script**: elas valem mais que a linha do código.
+
+1. Em https://curanossaterra.goatcounter.com/user/api, crie uma chave marcando só **Leia as estatísticas** e copie.
+2. No Apps Script, clique na engrenagem **⚙ Configurações do projeto** (menu da esquerda).
+3. Lá embaixo, em **Propriedades do script**, clique em **Adicionar propriedade do script**:
+   - Propriedade: `GOATCOUNTER_CHAVE`
+   - Valor: a chave copiada
+4. Clique em **Salvar propriedades do script**. Não precisa implantar de novo por causa disso.
+
+Para trocar a chave no futuro, é só editar esse valor.
+
 ## Depois
 
 - **Para criar uma função nova** (ex.: "Iluminação"): na planilha **Portal da Mídia (dados)**, aba **Escala**, insira uma coluna antes de "Descanso" com o nome da função.

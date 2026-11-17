@@ -47,13 +47,47 @@
   header p { color: var(--texto-suave); font-size: 14px; }
   header .acoes { margin-left: auto; display: flex; gap: 8px; }
 
-  /* abas entre o painel de visitas e o Portal da Mídia */
-  .abas { display: flex; gap: 4px; margin-top: 20px; border-bottom: 1px solid var(--linha); }
-  .abas a {
-    padding: 10px 14px; color: var(--texto-suave); text-decoration: none; font-size: 15px; font-weight: 600;
-    border-bottom: 3px solid transparent; margin-bottom: -1px;
+  /* VISITAS DO SITE (visitas.js) */
+  .periodos { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 4px; }
+  .periodos button {
+    border: 1px solid var(--linha); background: transparent; color: var(--texto);
+    border-radius: 999px; padding: 8px 14px; font-size: 14px; font-weight: 600; cursor: pointer;
   }
-  .abas a[aria-current="page"] { color: var(--texto); border-bottom-color: var(--destaque); }
+  .periodos button[aria-pressed="true"] { background: var(--botao); border-color: var(--botao); color: var(--botao-texto); }
+  #visitasConteudo { transition: opacity .2s; }
+  #visitasConteudo.carregando { opacity: .45; }
+  .numeros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 12px; }
+  .numero { background: var(--cartao); border: 1px solid var(--linha); border-radius: 16px; padding: 16px; }
+  .numero span { display: block; color: var(--texto-suave); font-size: 13px; font-weight: 600; }
+  .numero strong { display: block; font-size: 34px; font-weight: 800; margin-top: 4px; line-height: 1.1; }
+  .numero small { display: block; color: var(--texto-suave); font-size: 12px; margin-top: 4px; }
+  .grade-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grafico { position: relative; margin-top: 16px; }
+  .grafico svg { display: block; width: 100%; height: 220px; overflow: visible; }
+  .grafico .grade { stroke: rgba(174,187,208,.15); stroke-width: 1; }
+  .grafico .eixo { fill: var(--texto-suave); font-size: 11px; }
+  .grafico .barra { fill: var(--destaque); }
+  .grafico .alvo { fill: transparent; cursor: pointer; }
+  .grafico .alvo:hover + .barra, .grafico .alvo:focus + .barra { fill: #e2c48d; }
+  .grafico .alvo:focus { outline: none; }
+  .dica {
+    position: absolute; pointer-events: none; transform: translate(-50%, -100%);
+    background: var(--botao); color: var(--botao-texto); border-radius: 8px; padding: 6px 10px;
+    font-size: 12px; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,.35);
+  }
+  .dica strong { font-size: 15px; font-weight: 800; margin-right: 4px; }
+  .ranking { list-style: none; margin-top: 12px; display: grid; gap: 10px; }
+  .ranking li { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline; font-size: 14px; }
+  .ranking .nome { overflow-wrap: anywhere; }
+  .ranking .valor { font-weight: 800; }
+  .ranking .trilho { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: rgba(174,187,208,.12); }
+  .ranking .trilho i { display: block; height: 100%; border-radius: 3px; background: var(--destaque); min-width: 4px; }
+  .grupo { margin-top: 16px; color: var(--destaque); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+  @media (max-width: 720px) {
+    .numeros { grid-template-columns: 1fr 1fr; }
+    .numero strong { font-size: 28px; }
+    .grade-2 { grid-template-columns: 1fr; gap: 0; }
+  }
 
   .link-suave {
     background: none; border: 1px solid var(--linha); color: var(--texto-suave);
@@ -190,13 +224,9 @@
     <img src="img/midia-logo.webp" alt="Mídia e Comunicação · Cura Nossa Terra">
     <div>
       <h1>Portal da Mídia</h1>
-      <p>Escala, eventos e banners da equipe</p>
+      <p>Escala, eventos, banners e visitas do site</p>
     </div>
   </header>
-  <nav class="abas" aria-label="Painéis">
-    <a href="painel.html">Visitas do site</a>
-    <a href="midia.html" aria-current="page">Portal da Mídia</a>
-  </nav>
 
   <section class="entrar" id="telaEntrar">
     <div class="cartao">
@@ -224,6 +254,7 @@
       <button type="button" role="tab" data-secao="minhas" aria-selected="true">Minhas funções<span class="contador" id="contaTarefas" hidden></span></button>
       <button type="button" role="tab" data-secao="escala" aria-selected="false">Escala</button>
       <button type="button" role="tab" data-secao="eventos" aria-selected="false">Eventos<span class="contador" id="contaPendencias" hidden></span></button>
+      <button type="button" role="tab" data-secao="visitas" aria-selected="false">Visitas do site</button>
       <button type="button" role="tab" data-secao="tarefas" aria-selected="false" id="abaTarefas" hidden>Tarefas</button>
       <button type="button" role="tab" data-secao="equipe" aria-selected="false" id="abaEquipe" hidden>Equipe</button>
     </div>
@@ -253,6 +284,51 @@
 
       <section data-painel="eventos" hidden>
         <ul class="lista" id="listaEventos"></ul>
+      </section>
+
+      <section data-painel="visitas" hidden>
+        <div class="periodos" role="group" aria-label="Período">
+          <button type="button" data-periodo="hoje">Hoje</button>
+          <button type="button" data-periodo="7">7 dias</button>
+          <button type="button" data-periodo="30">30 dias</button>
+          <button type="button" data-periodo="mes">Este mês</button>
+          <button type="button" data-periodo="ano">Este ano</button>
+        </div>
+        <p class="erro" id="erroVisitas" role="alert"></p>
+        <div id="visitasConteudo">
+          <div class="numeros">
+            <div class="numero"><span>Visitas ao site</span><strong id="nVisitas">–</strong><small>pessoas no período</small></div>
+            <div class="numero"><span>Página principal</span><strong id="nPrincipal">–</strong><small>visitas</small></div>
+            <div class="numero"><span>Agenda</span><strong id="nAgenda">–</strong><small>visitas</small></div>
+            <div class="numero"><span>Cliques</span><strong id="nCliques">–</strong><small>em botões e links</small></div>
+          </div>
+          <div class="cartao">
+            <h2 id="tituloGrafico">Visitas por dia</h2>
+            <div class="grafico" id="grafico"></div>
+          </div>
+          <div class="grade-2">
+            <div class="cartao">
+              <h2>Cliques</h2>
+              <p class="sub">O que as pessoas mais tocaram</p>
+              <div id="cliques"></div>
+            </div>
+            <div>
+              <div class="cartao">
+                <h2>De onde vieram</h2>
+                <p class="sub">Por onde chegaram ao site</p>
+                <div id="origens"></div>
+              </div>
+              <div class="cartao">
+                <h2>Aparelhos</h2>
+                <div id="aparelhos"></div>
+              </div>
+              <div class="cartao">
+                <h2>Cidades e estados</h2>
+                <div id="locais"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section data-painel="tarefas" hidden>
@@ -340,6 +416,7 @@
 </main>
 
 <script src="comum.js"></script>
+<script src="visitas.js"></script>
 <script>
   // LIGAÇÃO COM O GOOGLE (passo a passo em apps-script/LEIA-ME.md)
   const API = "https://script.google.com/macros/s/AKfycbxPpciahsKz8OoAl0oBLex7PUzx5WXROlrsT2Y7mIZPY3tG5WbMUXEbuTV-yZtGkRZrlA/exec"; // endereço do Apps Script implantado (termina em /exec)
@@ -441,24 +518,30 @@
     $("erroEntrar").textContent = mensagem;
   }
 
-  // Toda conversa com o Apps Script passa por aqui. A resposta sempre traz os dados atualizados.
+  // Toda conversa com o Apps Script passa por aqui (a seção de visitas também usa).
   // (corpo em texto simples: assim o navegador não faz a consulta prévia de CORS, que o Apps Script não aceita)
+  async function pedir(acao, extra = {}) {
+    let resposta;
+    try {
+      const r = await fetch(API, { method: "POST", body: JSON.stringify({ acao, token, ...extra }) });
+      resposta = await r.json();
+    } catch {
+      throw new Error("Não consegui falar com o Google. Confira a internet e tente de novo.");
+    }
+    if (resposta.erro) {
+      const erro = new Error(resposta.erro);
+      erro.codigo = resposta.codigo;
+      if (erro.codigo === "entrar") sair(resposta.erro);
+      throw erro;
+    }
+    return resposta;
+  }
+
+  // Ações do portal: a resposta sempre traz todos os dados atualizados, e a tela é redesenhada.
   async function api(acao, extra = {}) {
     $("conteudo").classList.add("carregando");
     try {
-      let resposta;
-      try {
-        const r = await fetch(API, { method: "POST", body: JSON.stringify({ acao, token, ...extra }) });
-        resposta = await r.json();
-      } catch {
-        throw new Error("Não consegui falar com o Google. Confira a internet e tente de novo.");
-      }
-      if (resposta.erro) {
-        const erro = new Error(resposta.erro);
-        erro.codigo = resposta.codigo;
-        if (erro.codigo === "entrar") sair(resposta.erro);
-        throw erro;
-      }
+      const resposta = await pedir(acao, extra);
       dados = resposta;
       dados.disponibilidade = dados.disponibilidade || [];
       dados.tarefas = dados.tarefas || [];
@@ -926,11 +1009,15 @@
     document.querySelectorAll(".secoes button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.secao === nome)));
     document.querySelectorAll("[data-painel]").forEach((p) => { p.hidden = p.dataset.painel !== nome; });
     avisar("");
+    if (nome === "visitas") Visitas.abrir();
   }
   document.querySelectorAll(".secoes button").forEach((b) => b.addEventListener("click", () => mostrarSecao(b.dataset.secao)));
   $("irEventos").addEventListener("click", () => mostrarSecao("eventos"));
   $("maisSemanas").addEventListener("click", () => { semanas += 6; desenhar(); });
-  $("atualizar").addEventListener("click", () => api("dados").then(() => avisar("Atualizado.")).catch((e) => avisar(e.message, true)));
+  $("atualizar").addEventListener("click", () => {
+    if (!document.querySelector('[data-painel="visitas"]').hidden) Visitas.carregar();
+    api("dados").then(() => avisar("Atualizado.")).catch((e) => avisar(e.message, true));
+  });
   $("sair").addEventListener("click", () => sair());
   document.querySelectorAll("[data-fechar]").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
   document.querySelectorAll("dialog").forEach((d) => d.addEventListener("click", (e) => { if (e.target === d) d.close(); }));
