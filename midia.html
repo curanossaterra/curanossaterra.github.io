@@ -136,6 +136,13 @@
   }
   .dica-campo { width: 100%; font-size: 13px; color: var(--texto-suave); }
   .dica-campo.erro { color: var(--erro); margin-top: 0; }
+  .dica-campo a { color: var(--destaque); font-weight: 600; }
+  .enviar-banner { margin-top: 12px; }
+  .enviar-banner input[type="file"] { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .enviar-banner label, .enviar-banner .principal { display: inline-block; }
+  .enviar-banner .dica-campo { margin-top: 8px; }
+  .enviar-banner input[type="file"]:focus-visible + .principal { outline: 3px solid var(--destaque); outline-offset: 2px; }
+  .ou { margin-top: 12px; font-size: 13px; color: var(--texto-suave); }
 
   /* janelas de edição */
   dialog {
@@ -174,7 +181,7 @@
   <section class="entrar" id="telaEntrar">
     <div class="cartao">
       <h2>Entre com sua conta Google</h2>
-      <p>Só a equipe da Mídia consegue entrar. Se o seu e-mail ainda não estiver cadastrado, peça para a coordenação.</p>
+      <p>Só a equipe da Mídia consegue entrar. Se o seu e-mail ainda não estiver cadastrado, peça para o líder.</p>
       <div id="botaoGoogle"></div>
       <p class="erro" id="erroEntrar" role="alert"></p>
       <p class="erro" id="naoConfigurado" hidden>O portal ainda não foi ligado ao Google. Siga o passo a passo em apps-script/LEIA-ME.md.</p>
@@ -226,7 +233,7 @@
       <section data-painel="equipe" hidden>
         <div class="cartao">
           <h2>Equipe da Mídia</h2>
-          <p class="sub">Quem tem e-mail cadastrado consegue entrar no portal. Coordenação monta a escala e cuida da equipe.</p>
+          <p class="sub">Quem tem e-mail cadastrado consegue entrar no portal. O líder monta a escala e cuida da equipe.</p>
           <button class="principal" type="button" id="novoMembro" style="margin-top:12px">Adicionar pessoa</button>
         </div>
         <ul class="lista" id="listaEquipe"></ul>
@@ -234,7 +241,7 @@
     </div>
   </section>
 
-  <!-- editar a escala de um culto/evento (coordenação) -->
+  <!-- editar a escala de um culto/evento (líder) -->
   <dialog id="janelaEscala">
     <form id="formEscala">
       <h2 id="escalaTitulo"></h2>
@@ -251,7 +258,7 @@
     </form>
   </dialog>
 
-  <!-- adicionar/editar pessoa da equipe (coordenação) -->
+  <!-- adicionar/editar pessoa da equipe (líder) -->
   <dialog id="janelaMembro">
     <form id="formMembro">
       <h2 id="membroTitulo"></h2>
@@ -263,7 +270,7 @@
       </label>
       <label>Funções</label>
       <div id="membroFuncoes"></div>
-      <label class="marcar"><input type="checkbox" id="membroCoordenador"> Coordenação (monta a escala e cuida da equipe)</label>
+      <label class="marcar"><input type="checkbox" id="membroCoordenador"> Líder (monta a escala e cuida da equipe)</label>
       <p class="erro" id="membroErro" role="alert"></p>
       <div class="botoes">
         <button class="link-suave remover" type="button" id="membroRemover">Remover</button>
@@ -279,6 +286,8 @@
   // LIGAÇÃO COM O GOOGLE (passo a passo em apps-script/LEIA-ME.md)
   const API = "https://script.google.com/macros/s/AKfycbxPpciahsKz8OoAl0oBLex7PUzx5WXROlrsT2Y7mIZPY3tG5WbMUXEbuTV-yZtGkRZrlA/exec"; // endereço do Apps Script implantado (termina em /exec)
   const CLIENT_ID = "40038838902-r4jcn68bgja5bs7jb4q13ekur1s69kr3.apps.googleusercontent.com"; // código do cliente OAuth (termina em .apps.googleusercontent.com)
+  // pasta do Drive onde ficam os banners (o envio pelo portal salva aqui sozinho)
+  const PASTA_BANNERS = "https://drive.google.com/drive/folders/1DaQeI7zVccO5z1eIeX5PmqsRyU8najSt";
 
   const CHAVE_LOGIN = "midia-login";
   const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -431,10 +440,8 @@
   function desenhar() {
     const eu = dados.eu;
     $("olaNome").textContent = `Olá, ${eu.nome}`;
-    $("olaFuncoes").replaceChildren(
-      ...eu.funcoes.map((f) => criar("span", { className: "chip", textContent: f })),
-      eu.coordenador ? criar("span", { className: "chip", textContent: "Coordenação" }) : null,
-    );
+    $("olaFuncoes").replaceChildren(...eu.funcoes.map((f) => criar("span", { className: "chip", textContent: f })));
+    if (eu.coordenador) $("olaFuncoes").append(criar("span", { className: "chip", textContent: "Líder" }));
     $("abaEquipe").hidden = !eu.coordenador;
 
     const lista = ocasioes();
@@ -520,11 +527,59 @@
     }));
   }
 
+  // Diminui a foto (no máx. 1600 px, JPG) antes de enviar: sobe rápido mesmo no 4G e fica leve no site.
+  async function prepararImagem(arquivo) {
+    const foto = await createImageBitmap(arquivo);
+    const escala = Math.min(1, 1600 / Math.max(foto.width, foto.height));
+    const tela = criar("canvas", { width: Math.round(foto.width * escala), height: Math.round(foto.height * escala) });
+    const ctx = tela.getContext("2d");
+    ctx.fillStyle = "#fff"; // fundo branco no lugar da transparência do PNG
+    ctx.fillRect(0, 0, tela.width, tela.height);
+    ctx.drawImage(foto, 0, 0, tela.width, tela.height);
+    const blob = await new Promise((ok) => tela.toBlob(ok, "image/jpeg", 0.88));
+    const dataUrl = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(blob); });
+    return dataUrl.split(",")[1];
+  }
+
   function formBanner(e) {
+    // 1) enviar a imagem direto (o Apps Script salva na pasta do Drive e preenche a coluna Banner)
+    const arquivo = criar("input", { type: "file", accept: "image/*" });
+    arquivo.setAttribute("aria-label", `Enviar imagem do banner de ${e.evento}`);
+    const botaoEnviar = criar("span", { className: "principal", textContent: e.banner ? "Enviar outra imagem" : "Enviar imagem" });
+    const situacao = criar("p", { className: "dica-campo" });
+    situacao.append("Escolha a arte no celular ou no computador. Ela vai sozinha para a ",
+      criar("a", { href: PASTA_BANNERS, target: "_blank", rel: "noopener", textContent: "pasta de banners" }), ".");
+    arquivo.addEventListener("change", async () => {
+      const escolhido = arquivo.files[0];
+      if (!escolhido) return;
+      situacao.classList.remove("erro");
+      situacao.textContent = "Preparando a imagem…";
+      botaoEnviar.style.opacity = ".6";
+      arquivo.disabled = true;
+      try {
+        let base64;
+        try { base64 = await prepararImagem(escolhido); } catch {
+          throw new Error("Não consegui abrir esse arquivo. Use uma imagem JPG ou PNG.");
+        }
+        situacao.textContent = "Enviando para o Drive…";
+        await api("enviarBanner", { linha: e.linha, evento: e.evento, data: e.data, base64 });
+        avisar(`Banner de "${arrumarTexto(e.evento)}" enviado. Já aparece na agenda do site.`);
+      } catch (erro) {
+        situacao.classList.add("erro");
+        situacao.textContent = erro.message;
+      } finally {
+        arquivo.disabled = false;
+        arquivo.value = "";
+        botaoEnviar.style.opacity = "";
+      }
+    });
+    const envio = criar("div", { className: "enviar-banner" }, criar("label", {}, arquivo, botaoEnviar), situacao);
+
+    // 2) ou colar o link de uma imagem que já está no Drive
     const campo = criar("input", { type: "url", placeholder: "Cole aqui o link do banner no Google Drive", value: e.banner });
     campo.setAttribute("aria-label", `Link do banner de ${e.evento}`);
     const botao = criar("button", { type: "submit", className: "principal", textContent: "Salvar" });
-    const dica = criar("p", { className: "dica-campo", textContent: 'No Drive: Compartilhar → "Qualquer pessoa com o link" → Copiar link.' });
+    const dica = criar("p", { className: "dica-campo", textContent: 'Arquivo já no Drive? Compartilhar → "Qualquer pessoa com o link" → Copiar link.' });
     const form = criar("form", { className: "form-banner" }, campo, botao, dica);
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
@@ -554,7 +609,7 @@
         dica.textContent = erro.message;
       }
     });
-    return form;
+    return criar("div", {}, envio, criar("p", { className: "ou", textContent: "ou cole o link:" }), form);
   }
 
   function desenharEquipe() {
@@ -565,7 +620,7 @@
           criar("small", { textContent: m.email || "Sem e-mail: aparece na escala, mas não entra no portal" }),
           criar("div", { className: "chips", style: "margin-top:8px" },
             m.funcoes.map((f) => criar("span", { className: "chip", textContent: f })),
-            m.coordenador ? criar("span", { className: "chip", textContent: "Coordenação" }) : null,
+            m.coordenador ? criar("span", { className: "chip", textContent: "Líder" }) : null,
           ),
         ),
         criar("button", { type: "button", className: "link-suave", textContent: "Editar", onclick: () => abrirMembro(m) }),

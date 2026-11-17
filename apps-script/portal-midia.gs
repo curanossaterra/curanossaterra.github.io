@@ -3,6 +3,7 @@
 //
 // O que ele guarda e onde:
 //  - Banner dos eventos -> coluna "Banner" da planilha da agenda (a mesma que a Ariane alimenta).
+//    A imagem enviada pelo portal fica na pasta de banners do Drive (PASTA_BANNERS).
 //  - Equipe e Escala   -> uma planilha particular, "Portal da Mídia (dados)", criada sozinha no seu Drive.
 //    Ela não é pública: os e-mails da equipe não aparecem para ninguém de fora.
 //    Para criar uma função nova na escala, basta acrescentar uma coluna nela (antes de "Descanso").
@@ -11,6 +12,7 @@
 const CLIENT_ID = "40038838902-r4jcn68bgja5bs7jb4q13ekur1s69kr3.apps.googleusercontent.com";
 const AGENDA_ID = "1W-44JHBbi8hxsPrDh14T-W76qqavTwYkMUBf5EdHcVQ";
 const FUSO = "America/Sao_Paulo";
+const PASTA_BANNERS = "1DaQeI7zVccO5z1eIeX5PmqsRyU8najSt";
 
 // Usado só na primeira vez, para montar a planilha de dados.
 const FUNCOES_INICIAIS = ["Live", "Staff Live / Luzes", "Foto / Vídeo / Postagem", "Telão", "Som"];
@@ -23,9 +25,11 @@ const EQUIPE_INICIAL = [
 ];
 
 // Rode esta função UMA vez pelo editor (botão "Executar"): ela pede as permissões e cria a planilha de dados.
+// Rode de novo sempre que o código pedir uma permissão nova (ex.: a do Drive, para enviar banners).
 function instalar() {
   const planilha = planilhaDeDados();
   Logger.log("Pronto! Planilha de dados: " + planilha.getUrl());
+  Logger.log("Pasta de banners: " + DriveApp.getFolderById(PASTA_BANNERS).getName());
 }
 
 function doPost(e) {
@@ -41,11 +45,12 @@ function doPost(e) {
 }
 
 function executar(pedido, eu) {
-  const exigirCoordenador = () => { if (!eu.coordenador) throw falha("Só a coordenação pode fazer isso."); };
+  const exigirCoordenador = () => { if (!eu.coordenador) throw falha("Só o líder pode fazer isso."); };
   const trava = LockService.getScriptLock();
   if (pedido.acao !== "dados") trava.waitLock(20000);
   try {
     if (pedido.acao === "salvarBanner") salvarBanner(pedido);
+    else if (pedido.acao === "enviarBanner") enviarBanner(pedido);
     else if (pedido.acao === "salvarEscala") { exigirCoordenador(); salvarEscala(pedido, eu); }
     else if (pedido.acao === "salvarMembro") { exigirCoordenador(); salvarMembro(pedido); }
     else if (pedido.acao === "removerMembro") { exigirCoordenador(); removerMembro(pedido); }
@@ -56,7 +61,7 @@ function executar(pedido, eu) {
   return tudo(eu);
 }
 
-// Tudo o que a página precisa, de uma vez. E-mails da equipe só vão para a coordenação.
+// Tudo o que a página precisa, de uma vez. E-mails da equipe só vão para o líder.
 function tudo(eu) {
   const equipe = lerEquipe().map((m) => eu.coordenador ? m : { nome: m.nome, funcoes: m.funcoes, coordenador: m.coordenador });
   const { funcoes, linhas } = lerEscala();
@@ -90,8 +95,8 @@ function quemEstaUsando(token) {
   const dono = Session.getEffectiveUser().getEmail().toLowerCase();
   const membro = lerEquipe().find((m) => m.email === email);
   if (membro) return Object.assign({}, membro, { coordenador: membro.coordenador || email === dono });
-  if (email === dono) return { email, nome: "Coordenação", funcoes: [], coordenador: true };
-  throw falha(`O e-mail ${email} ainda não está na equipe da Mídia. Peça para a coordenação cadastrar você.`, "sem-acesso");
+  if (email === dono) return { email, nome: "Líder", funcoes: [], coordenador: true };
+  throw falha(`O e-mail ${email} ainda não está na equipe da Mídia. Peça para o líder cadastrar você.`, "sem-acesso");
 }
 
 // ---------------------------------------------------------------------------
@@ -100,12 +105,20 @@ function abaDaAgenda() {
   return SpreadsheetApp.openById(AGENDA_ID).getSheets()[0];
 }
 
-function colunasDaAgenda(cabecalho) {
-  const nomes = cabecalho.map(normalizar);
+// Os títulos não ficam necessariamente na linha 1 (hoje a linha 1 tem só o contador "9/17 concluído").
+// Procura a primeira linha com "Evento" e "Banner"; o título de cada coluna junta essa linha e as de cima.
+function colunasDaAgenda(textos) {
+  const cabecalho = textos.slice(0, 10).findIndex((l) => {
+    const n = l.map(normalizar);
+    return n.some((c) => c.includes("evento")) && n.some((c) => c.includes("banner"));
+  });
+  if (cabecalho < 0) throw falha('A planilha da agenda precisa das colunas "Evento" e "Banner".');
+  const nomes = textos[0].map((_, j) => normalizar(textos.slice(0, cabecalho + 1).map((l) => l[j]).join(" ")));
   const achar = (...chaves) => nomes.findIndex((n) => chaves.some((c) => n.includes(c)));
   const feito = nomes.findIndex((n) => n.includes("✓"));
   return {
-    feito: feito >= 0 ? feito : achar("conclu"),
+    cabecalho, // índice da linha dos títulos (0 = linha 1)
+    feito: feito >= 0 ? feito : nomes.findIndex((n) => n.includes("conclu") && !n.includes("evento")),
     data: achar("data", "dia"),
     hora: achar("hor"),
     evento: achar("evento"),
@@ -119,11 +132,10 @@ function lerAgenda() {
   const intervalo = aba.getDataRange();
   const textos = intervalo.getDisplayValues();
   const valores = intervalo.getValues();
-  const col = colunasDaAgenda(textos[0]);
-  if (col.evento < 0 || col.banner < 0) throw falha('A planilha da agenda precisa das colunas "Evento" e "Banner".');
+  const col = colunasDaAgenda(textos);
   const hoje = hojeISO();
   const eventos = [];
-  for (let i = 1; i < textos.length; i++) {
+  for (let i = col.cabecalho + 1; i < textos.length; i++) {
     const t = textos[i];
     const evento = t[col.evento].trim();
     if (!evento) continue;
@@ -142,20 +154,38 @@ function lerAgenda() {
   return { aba, col, eventos };
 }
 
+// A célula Banner do evento pedido. Confere se a linha ainda é o mesmo evento
+// (a Ariane pode ter mexido na planilha enquanto a Mídia editava).
+function celulaDoBanner(pedido) {
+  const aba = abaDaAgenda();
+  const col = colunasDaAgenda(aba.getRange(1, 1, Math.min(10, aba.getLastRow()), aba.getLastColumn()).getDisplayValues());
+  const linha = Number(pedido.linha);
+  const evento = linha > col.cabecalho + 1 ? aba.getRange(linha, col.evento + 1).getDisplayValue().trim() : "";
+  if (!evento || evento !== String(pedido.evento || "").trim()) {
+    throw falha("A agenda mudou enquanto você editava. Atualize a página e tente de novo.");
+  }
+  return aba.getRange(linha, col.banner + 1);
+}
+
 function salvarBanner(pedido) {
   const link = String(pedido.link || "").trim();
   if (link && !/drive\.google\.com|docs\.google\.com|googleusercontent\.com/.test(link)) {
     throw falha("Use o link do arquivo no Google Drive.");
   }
-  const aba = abaDaAgenda();
-  const col = colunasDaAgenda(aba.getRange(1, 1, 1, aba.getLastColumn()).getDisplayValues()[0]);
-  const linha = Number(pedido.linha);
-  // confere se a linha ainda é o mesmo evento (a Ariane pode ter mexido na planilha nesse meio-tempo)
-  const evento = linha > 1 ? aba.getRange(linha, col.evento + 1).getDisplayValue().trim() : "";
-  if (!evento || evento !== String(pedido.evento || "").trim()) {
-    throw falha("A agenda mudou enquanto você editava. Atualize a página e tente de novo.");
-  }
-  aba.getRange(linha, col.banner + 1).setValue(link);
+  celulaDoBanner(pedido).setValue(link);
+}
+
+// Recebe a imagem (JPG já diminuído pela página), salva na pasta de banners,
+// libera "Qualquer pessoa com o link" e coloca o link na coluna Banner.
+function enviarBanner(pedido) {
+  const celula = celulaDoBanner(pedido); // confere antes de criar o arquivo
+  const bytes = Utilities.base64Decode(String(pedido.base64 || ""));
+  if (!bytes.length) throw falha("A imagem chegou vazia. Tente de novo.");
+  if (bytes.length > 8 * 1024 * 1024) throw falha("Imagem grande demais.");
+  const nome = `${pedido.data || "sem data"} - ${String(pedido.evento).trim()}`.replace(/[\/:*?"<>|]/g, "-") + ".jpg";
+  const arquivo = DriveApp.getFolderById(PASTA_BANNERS).createFile(Utilities.newBlob(bytes, "image/jpeg", nome));
+  arquivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  celula.setValue(`https://drive.google.com/file/d/${arquivo.getId()}/view`);
 }
 
 // ---------------------------------------------------------------------------
@@ -165,11 +195,11 @@ function planilhaDeDados() {
   const id = props.getProperty("DADOS_ID");
   if (id) return SpreadsheetApp.openById(id);
 
-  // A conta que instala (a da igreja) é sempre coordenação, mesmo sem estar na lista.
+  // A conta que instala (a da igreja) é sempre líder, mesmo sem estar na lista.
   // Os e-mails pessoais da equipe são preenchidos depois, pelo portal.
   const planilha = SpreadsheetApp.create("Portal da Mídia (dados)");
   const equipe = planilha.getSheets()[0].setName("Equipe");
-  equipe.appendRow(["E-mail", "Nome", "Funções", "Coordenador"]);
+  equipe.appendRow(["E-mail", "Nome", "Funções", "Líder"]);
   EQUIPE_INICIAL.forEach(([nome, funcao]) => equipe.appendRow(["", nome, funcao, nome === "Jhow" ? "Sim" : ""]));
   const escala = planilha.insertSheet("Escala");
   escala.getRange("A:A").setNumberFormat("@"); // data como texto (aaaa-mm-dd), sem o Sheets converter

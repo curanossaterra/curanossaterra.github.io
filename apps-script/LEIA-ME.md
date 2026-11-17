@@ -49,8 +49,8 @@ Depois, publique com `git add -A; git commit -m "Portal da Mídia"; git push`.
 
 ## Parte 4: a equipe
 
-1. Abra https://curanossaterra.github.io/midia.html e entre com a **conta da Cura**. Ela é sempre coordenação.
-2. Na seção **Equipe**, toque em **Editar** no **Jhow** e coloque o seu e-mail **pessoal**. Ele já está marcado como Coordenação.
+1. Abra https://curanossaterra.github.io/midia.html e entre com a **conta da Cura**. Ela é sempre líder.
+2. Na seção **Equipe**, toque em **Editar** no **Jhow** e coloque o seu e-mail **pessoal**. Ele já está marcado como Líder.
 3. Faça o mesmo com as outras pessoas, cada uma com o e-mail do Google dela. Só depois disso a pessoa consegue entrar.
 4. Toque em **Sair** e entre de novo com a sua conta pessoal. A partir daí, use sempre ela; a conta da Cura fica de reserva.
 
