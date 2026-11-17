@@ -158,6 +158,26 @@
   .botoes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin-top: 20px; }
   .botoes .remover { margin-right: auto; color: var(--erro); }
 
+  /* presença: cada pessoa diz se vai estar */
+  .presenca { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; font-size: 13px; color: var(--texto-suave); }
+  .presenca button {
+    border: 1px solid var(--linha); background: transparent; color: var(--texto);
+    border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .presenca button.sim[aria-pressed="true"] { background: var(--ok); border-color: var(--ok); color: #0b2a14; }
+  .presenca button.nao[aria-pressed="true"] { background: var(--erro); border-color: var(--erro); color: #3b0d09; }
+  .respostas { margin-top: 8px; font-size: 13px; line-height: 1.5; color: var(--texto-suave); }
+  .respostas .sim { color: var(--ok); }
+  .respostas .nao { color: var(--erro); }
+
+  /* tarefas */
+  .tarefa { display: flex; align-items: flex-start; gap: 12px; }
+  .tarefa input[type="checkbox"] { flex: none; width: 22px; height: 22px; margin-top: 2px; accent-color: var(--ok); cursor: pointer; }
+  .tarefa > div { flex: 1; min-width: 0; }
+  .tarefa .texto { font-size: 15px; overflow-wrap: anywhere; }
+  .tarefa.feita .texto { text-decoration: line-through; color: var(--texto-suave); }
+  .atrasada { color: var(--erro) !important; }
+
   @media (max-width: 720px) {
     header .acoes, .ola .acoes { margin-left: 0; }
   }
@@ -167,7 +187,7 @@
 <body>
 <main>
   <header>
-    <img src="img/igreja.webp" alt="">
+    <img src="img/midia.webp" alt="Mídia e Comunicação · Cura Nossa Terra">
     <div>
       <h1>Portal da Mídia</h1>
       <p>Escala, eventos e banners da equipe</p>
@@ -201,9 +221,10 @@
     </div>
 
     <div class="secoes" role="tablist" aria-label="Seções">
-      <button type="button" role="tab" data-secao="minhas" aria-selected="true">Minhas funções</button>
+      <button type="button" role="tab" data-secao="minhas" aria-selected="true">Minhas funções<span class="contador" id="contaTarefas" hidden></span></button>
       <button type="button" role="tab" data-secao="escala" aria-selected="false">Escala</button>
       <button type="button" role="tab" data-secao="eventos" aria-selected="false">Eventos<span class="contador" id="contaPendencias" hidden></span></button>
+      <button type="button" role="tab" data-secao="tarefas" aria-selected="false" id="abaTarefas" hidden>Tarefas</button>
       <button type="button" role="tab" data-secao="equipe" aria-selected="false" id="abaEquipe" hidden>Equipe</button>
     </div>
     <p class="aviso" id="aviso" role="status"></p>
@@ -214,6 +235,10 @@
           <h2 id="tituloPendencias"></h2>
           <p class="sub">A Ariane lançou na agenda e ainda falta o banner. Cole o link do Drive para aparecer no site.</p>
           <button class="principal" type="button" id="irEventos" style="margin-top:12px">Ver eventos</button>
+        </div>
+        <div class="cartao">
+          <h2>Suas tarefas</h2>
+          <ul class="lista" id="minhasTarefas"></ul>
         </div>
         <div class="cartao minhas">
           <h2>Suas próximas escalas</h2>
@@ -228,6 +253,15 @@
 
       <section data-painel="eventos" hidden>
         <ul class="lista" id="listaEventos"></ul>
+      </section>
+
+      <section data-painel="tarefas" hidden>
+        <div class="cartao">
+          <h2>Tarefas da equipe</h2>
+          <p class="sub">Cada pessoa vê as dela em "Minhas funções" e marca quando terminar.</p>
+          <button class="principal" type="button" id="novaTarefa" style="margin-top:12px">Nova tarefa</button>
+        </div>
+        <ul class="lista" id="listaTarefas"></ul>
       </section>
 
       <section data-painel="equipe" hidden>
@@ -254,6 +288,30 @@
       <div class="botoes">
         <button class="link-suave" type="button" data-fechar>Cancelar</button>
         <button class="principal" type="submit">Salvar escala</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- nova tarefa para alguém da equipe (líder) -->
+  <dialog id="janelaTarefa">
+    <form id="formTarefa">
+      <h2>Nova tarefa</h2>
+      <label>Para quem
+        <select class="campo" id="tarefaPara" required></select>
+      </label>
+      <label>O que fazer
+        <input class="campo" id="tarefaTexto" required placeholder="Ex.: Preparar os slides dos louvores">
+      </label>
+      <label>Para quando
+        <select class="campo" id="tarefaQuando" required></select>
+      </label>
+      <label id="rotuloOutraData" hidden>Data
+        <input class="campo" id="tarefaPrazo" type="date">
+      </label>
+      <p class="erro" id="tarefaErro" role="alert"></p>
+      <div class="botoes">
+        <button class="link-suave" type="button" data-fechar>Cancelar</button>
+        <button class="principal" type="submit">Criar tarefa</button>
       </div>
     </form>
   </dialog>
@@ -402,6 +460,8 @@
         throw erro;
       }
       dados = resposta;
+      dados.disponibilidade = dados.disponibilidade || [];
+      dados.tarefas = dados.tarefas || [];
       desenhar();
       return resposta;
     } finally {
@@ -443,12 +503,57 @@
     $("olaFuncoes").replaceChildren(...eu.funcoes.map((f) => criar("span", { className: "chip", textContent: f })));
     if (eu.coordenador) $("olaFuncoes").append(criar("span", { className: "chip", textContent: "Líder" }));
     $("abaEquipe").hidden = !eu.coordenador;
+    $("abaTarefas").hidden = !eu.coordenador;
 
     const lista = ocasioes();
     desenharMinhas(lista);
     desenharEscala(lista);
     desenharEventos();
-    if (eu.coordenador) desenharEquipe();
+    if (eu.coordenador) { desenharTarefas(); desenharEquipe(); }
+  }
+
+  // respostas de presença de um culto/evento
+  const respostasDe = (o) => dados.disponibilidade.filter((d) => d.data === o.data && d.ocasiao === o.nome);
+
+  function itemTarefa(t, { mostrarPara = false, podeRemover = false } = {}) {
+    const hoje = iso(new Date());
+    const caixa = criar("input", { type: "checkbox", checked: !!t.feitaEm });
+    caixa.setAttribute("aria-label", `Marcar "${t.tarefa}" como feita`);
+    caixa.addEventListener("change", () => {
+      api("concluirTarefa", { id: t.id, feita: caixa.checked })
+        .then(() => avisar(caixa.checked ? "Tarefa concluída. Obrigado!" : "Tarefa reaberta."))
+        .catch((e) => avisar(e.message, true));
+    });
+    const prazo = t.prazo ? (t.ocasiao ? `para ${t.ocasiao} (${rotuloDia(t.prazo)})` : `até ${rotuloDia(t.prazo)}`) : "";
+    const detalhes = [mostrarPara ? t.para : "", prazo, t.criadaPor ? `por ${t.criadaPor}` : ""].filter(Boolean).join(" · ");
+    return criar("li", { className: t.feitaEm ? "item tarefa feita" : "item tarefa" },
+      caixa,
+      criar("div", {},
+        criar("span", { className: "texto", textContent: t.tarefa }),
+        detalhes ? criar("small", { textContent: detalhes, className: !t.feitaEm && t.prazo && t.prazo < hoje ? "atrasada" : "" }) : null,
+      ),
+      podeRemover ? criar("button", {
+        type: "button", className: "link-suave", textContent: "Remover",
+        onclick: () => { if (confirm(`Remover a tarefa "${t.tarefa}"?`)) api("removerTarefa", { id: t.id }).catch((e) => avisar(e.message, true)); },
+      }) : null,
+    );
+  }
+
+  // pendentes primeiro (por prazo); feitas no fim
+  const ordemTarefas = (a, b) => (!!a.feitaEm - !!b.feitaEm) || (a.prazo || "9").localeCompare(b.prazo || "9");
+
+  function desenharTarefas() {
+    const tarefas = [...dados.tarefas].sort(ordemTarefas);
+    if (!tarefas.length) {
+      $("listaTarefas").replaceChildren(criar("li", { className: "vazio", textContent: "Nenhuma tarefa criada ainda." }));
+      return;
+    }
+    // agrupa por pessoa, na ordem da equipe
+    const nomes = [...new Set([...dados.equipe.map((m) => m.nome), ...tarefas.map((t) => t.para)])];
+    $("listaTarefas").replaceChildren(...nomes.flatMap((nome) => {
+      const dela = tarefas.filter((t) => mesmoNome(t.para, nome));
+      return dela.length ? [criar("li", { className: "mes", textContent: nome }), ...dela.map((t) => itemTarefa(t, { podeRemover: true }))] : [];
+    }));
   }
 
   function desenharMinhas(lista) {
@@ -465,6 +570,14 @@
         o.escala.descanso ? criar("p", { className: "descanso" }, criar("b", { textContent: "Descanso: " }), o.escala.descanso) : null,
       );
     }) : [criar("li", { className: "vazio", textContent: `Você ainda não está escalado(a) nas próximas ${semanas} semanas.` })]));
+
+    const minhasTarefas = dados.tarefas.filter((t) => mesmoNome(t.para, eu.nome)).sort(ordemTarefas);
+    $("minhasTarefas").replaceChildren(...(minhasTarefas.length
+      ? minhasTarefas.map((t) => itemTarefa(t))
+      : [criar("li", { className: "vazio", textContent: "Nenhuma tarefa para você agora." })]));
+    const abertas = minhasTarefas.filter((t) => !t.feitaEm).length;
+    $("contaTarefas").hidden = !abertas;
+    $("contaTarefas").textContent = abertas;
 
     const pendentes = dados.eventos.filter((e) => !e.banner).length;
     $("cartaoPendencias").hidden = !pendentes;
@@ -496,8 +609,41 @@
           }),
         ))),
         o.escala && o.escala.descanso ? criar("p", { className: "descanso" }, criar("b", { textContent: "Descanso: " }), o.escala.descanso) : null,
+        resumoPresenca(o),
+        botoesPresenca(o),
       );
     }));
+  }
+
+  function resumoPresenca(o) {
+    const respostas = respostasDe(o);
+    const vao = respostas.filter((r) => r.resposta === "sim").map((r) => r.nome);
+    const naoVao = respostas.filter((r) => r.resposta === "nao").map((r) => r.nome);
+    if (!vao.length && !naoVao.length) return null;
+    return criar("p", { className: "respostas" },
+      vao.length ? criar("span", { className: "sim", textContent: `✓ Vão estar: ${vao.join(", ")}` }) : null,
+      vao.length && naoVao.length ? "  ·  " : null,
+      naoVao.length ? criar("span", { className: "nao", textContent: `✗ Não vão: ${naoVao.join(", ")}` }) : null,
+    );
+  }
+
+  // "Vou estar" / "Não vou": só informa o líder. Tocar de novo na mesma opção apaga a resposta.
+  function botoesPresenca(o) {
+    const minha = (respostasDe(o).find((r) => mesmoNome(r.nome, dados.eu.nome)) || {}).resposta || "";
+    const botao = (valor, texto) => criar("button", {
+      type: "button", className: valor, textContent: texto,
+      onclick: (ev) => {
+        ev.currentTarget.disabled = true;
+        api("marcarPresenca", { data: o.data, ocasiao: o.nome, resposta: minha === valor ? "" : valor })
+          .then(() => avisar(minha === valor ? "Resposta apagada." : `Resposta salva: ${texto.toLowerCase()} em ${o.nome} (${rotuloDia(o.data)}).`))
+          .catch((e) => avisar(e.message, true));
+      },
+    });
+    const sim = botao("sim", "Vou estar");
+    const nao = botao("nao", "Não vou");
+    sim.setAttribute("aria-pressed", String(minha === "sim"));
+    nao.setAttribute("aria-pressed", String(minha === "nao"));
+    return criar("div", { className: "presenca" }, criar("span", { textContent: "Você vai estar?" }), sim, nao);
   }
 
   function desenharEventos() {
@@ -634,14 +780,21 @@
   function abrirEscala(o) {
     escalaAberta = o;
     const pessoas = o.escala ? o.escala.pessoas : {};
+    const respostas = respostasDe(o);
+    const resposta = (n) => (respostas.find((r) => mesmoNome(r.nome, n)) || {}).resposta;
     $("escalaTitulo").textContent = o.nome;
     $("escalaQuando").textContent = rotuloDia(o.data, o.hora);
     $("escalaCampos").replaceChildren(...dados.funcoes.map((f) => {
       // quem tem a função aparece primeiro; os outros ficam embaixo, para cobrir falta
-      const daFuncao = dados.equipe.filter((m) => m.funcoes.includes(f)).map((m) => m.nome);
-      const outros = dados.equipe.map((m) => m.nome).filter((n) => !daFuncao.includes(n));
+      // e, dentro de cada grupo, quem confirmou presença vem antes; quem disse que não vai, por último
+      const peso = (n) => ({ sim: 0, nao: 2 }[resposta(n)] ?? 1);
+      const daFuncao = dados.equipe.filter((m) => m.funcoes.includes(f)).map((m) => m.nome).sort((a, b) => peso(a) - peso(b));
+      const outros = dados.equipe.map((m) => m.nome).filter((n) => !daFuncao.includes(n)).sort((a, b) => peso(a) - peso(b));
       const atual = pessoas[f] || "";
-      const opcao = (n) => criar("option", { value: n, textContent: n, selected: mesmoNome(n, atual) });
+      const opcao = (n) => criar("option", {
+        value: n, selected: mesmoNome(n, atual),
+        textContent: n + ({ sim: "  ✓ vai", nao: "  ✗ não vai" }[resposta(n)] || ""),
+      });
       const select = criar("select", { className: "campo", name: f },
         criar("option", { value: "", textContent: "— ninguém —" }),
         daFuncao.map(opcao),
@@ -668,6 +821,50 @@
       avisar(`Escala de ${escalaAberta.nome} (${rotuloDia(escalaAberta.data)}) salva.`);
     } catch (e) {
       $("escalaErro").textContent = e.message;
+    } finally {
+      botao.disabled = false;
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // JANELA: NOVA TAREFA (o prazo é um culto/evento da escala, ou outra data)
+  let ocasioesDaTarefa = [];
+  $("novaTarefa").addEventListener("click", () => {
+    ocasioesDaTarefa = ocasioes();
+    $("tarefaPara").replaceChildren(...dados.equipe.map((m) => criar("option", { value: m.nome, textContent: m.nome })));
+    $("tarefaQuando").replaceChildren(
+      criar("option", { value: "", textContent: "Escolha o culto ou evento…" }),
+      ...ocasioesDaTarefa.map((o, i) => criar("option", { value: String(i), textContent: `${o.nome} · ${rotuloDia(o.data, o.hora)}` })),
+      criar("option", { value: "outra", textContent: "Outra data…" }),
+    );
+    $("tarefaTexto").value = "";
+    $("tarefaPrazo").value = "";
+    $("rotuloOutraData").hidden = true;
+    $("tarefaErro").textContent = "";
+    $("janelaTarefa").showModal();
+  });
+  $("tarefaQuando").addEventListener("change", () => {
+    $("rotuloOutraData").hidden = $("tarefaQuando").value !== "outra";
+    $("tarefaPrazo").required = $("tarefaQuando").value === "outra";
+  });
+
+  $("formTarefa").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const quando = $("tarefaQuando").value;
+    const o = quando === "outra" ? null : ocasioesDaTarefa[Number(quando)];
+    const botao = ev.submitter;
+    botao.disabled = true;
+    try {
+      await api("salvarTarefa", {
+        para: $("tarefaPara").value,
+        tarefa: $("tarefaTexto").value,
+        prazo: o ? o.data : $("tarefaPrazo").value,
+        ocasiao: o ? o.nome : "",
+      });
+      $("janelaTarefa").close();
+      avisar(`Tarefa criada para ${$("tarefaPara").value}.`);
+    } catch (e) {
+      $("tarefaErro").textContent = e.message;
     } finally {
       botao.disabled = false;
     }

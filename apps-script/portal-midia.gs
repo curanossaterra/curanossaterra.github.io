@@ -4,7 +4,7 @@
 // O que ele guarda e onde:
 //  - Banner dos eventos -> coluna "Banner" da planilha da agenda (a mesma que a Ariane alimenta).
 //    A imagem enviada pelo portal fica na pasta de banners do Drive (PASTA_BANNERS).
-//  - Equipe e Escala   -> uma planilha particular, "Portal da Mídia (dados)", criada sozinha no seu Drive.
+//  - Equipe, Escala, Disponibilidade e Tarefas -> uma planilha particular, "Portal da Mídia (dados)", criada sozinha no seu Drive.
 //    Ela não é pública: os e-mails da equipe não aparecem para ninguém de fora.
 //    Para criar uma função nova na escala, basta acrescentar uma coluna nela (antes de "Descanso").
 
@@ -54,6 +54,10 @@ function executar(pedido, eu) {
     else if (pedido.acao === "salvarEscala") { exigirCoordenador(); salvarEscala(pedido, eu); }
     else if (pedido.acao === "salvarMembro") { exigirCoordenador(); salvarMembro(pedido); }
     else if (pedido.acao === "removerMembro") { exigirCoordenador(); removerMembro(pedido); }
+    else if (pedido.acao === "marcarPresenca") marcarPresenca(pedido, eu);
+    else if (pedido.acao === "salvarTarefa") { exigirCoordenador(); salvarTarefa(pedido, eu); }
+    else if (pedido.acao === "concluirTarefa") concluirTarefa(pedido, eu);
+    else if (pedido.acao === "removerTarefa") { exigirCoordenador(); removerTarefa(pedido); }
     else if (pedido.acao !== "dados") throw falha("Ação desconhecida.");
   } finally {
     if (pedido.acao !== "dados") trava.releaseLock();
@@ -66,11 +70,18 @@ function tudo(eu) {
   const equipe = lerEquipe().map((m) => eu.coordenador ? m : { nome: m.nome, funcoes: m.funcoes, coordenador: m.coordenador });
   const { funcoes, linhas } = lerEscala();
   const ontem = hojeISO(-1);
+  const umMesAtras = hojeISO(-30);
   return {
     eu: { nome: eu.nome, email: eu.email, funcoes: eu.funcoes, coordenador: eu.coordenador },
     funcoes,
     equipe,
     escala: linhas.filter((l) => l.data >= ontem),
+    disponibilidade: lerDisponibilidade().linhas.filter((l) => l.data >= ontem)
+      .map((l) => ({ data: l.data, ocasiao: l.ocasiao, nome: l.nome, resposta: l.resposta })),
+    // o líder vê todas; cada pessoa só as dela. Feitas somem depois de 30 dias.
+    tarefas: lerTarefas().linhas
+      .filter((t) => (eu.coordenador || mesmoNome(t.para, eu.nome)) && (!t.feitaEm || t.feitaEm >= umMesAtras))
+      .map((t) => ({ id: t.id, para: t.para, tarefa: t.tarefa, prazo: t.prazo, ocasiao: t.ocasiao, criadaPor: t.criadaPor, feitaEm: t.feitaEm })),
     eventos: lerAgenda().eventos,
   };
 }
@@ -273,7 +284,96 @@ function salvarEscala(pedido, eu) {
 }
 
 // ---------------------------------------------------------------------------
+// DISPONIBILIDADE: cada pessoa diz se vai estar. Só informa o líder; não impede escalar.
+function lerDisponibilidade() {
+  const aba = abaDeDados("Disponibilidade", ["Data", "Culto / Evento", "Nome", "Resposta", "Atualizado em"]);
+  const linhas = aba.getDataRange().getDisplayValues().slice(1)
+    .map((l, i) => ({ linha: i + 2, data: l[0].trim(), ocasiao: l[1].trim(), nome: l[2].trim(), resposta: normalizar(l[3]) }))
+    .filter((l) => l.data && l.nome);
+  return { aba, linhas };
+}
+
+function marcarPresenca(pedido, eu) {
+  const data = String(pedido.data || "");
+  const ocasiao = String(pedido.ocasiao || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !ocasiao) throw falha("Data ou culto inválido.");
+  const resposta = { sim: "Sim", nao: "Não" }[pedido.resposta] || ""; // vazio = apagar a resposta
+  const { aba, linhas } = lerDisponibilidade();
+  const existente = linhas.find((l) => l.data === data && l.ocasiao === ocasiao && mesmoNome(l.nome, eu.nome));
+  const valores = [data, ocasiao, eu.nome, resposta, agora()];
+  if (existente && resposta) aba.getRange(existente.linha, 1, 1, valores.length).setValues([valores]);
+  else if (existente) aba.deleteRow(existente.linha);
+  else if (resposta) aba.appendRow(valores);
+}
+
+// ---------------------------------------------------------------------------
+// TAREFAS: o líder cria (com prazo: um culto/evento ou uma data); a pessoa marca como feita.
+function lerTarefas() {
+  const aba = abaDeDados("Tarefas", ["ID", "Para", "Tarefa", "Prazo", "Culto / Evento", "Criada por", "Criada em", "Feita em"]);
+  const linhas = aba.getDataRange().getDisplayValues().slice(1)
+    .map((l, i) => ({
+      linha: i + 2, id: l[0].trim(), para: l[1].trim(), tarefa: l[2].trim(), prazo: l[3].trim(),
+      ocasiao: l[4].trim(), criadaPor: l[5].trim(), feitaEm: l[7].trim(),
+    }))
+    .filter((t) => t.id && t.tarefa);
+  return { aba, linhas };
+}
+
+function salvarTarefa(pedido, eu) {
+  const para = String(pedido.para || "").trim();
+  const tarefa = String(pedido.tarefa || "").trim();
+  const prazo = String(pedido.prazo || "");
+  if (!tarefa) throw falha("Escreva a tarefa.");
+  if (!lerEquipe().some((m) => mesmoNome(m.nome, para))) throw falha("Escolha uma pessoa da equipe.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(prazo)) throw falha("Escolha para quando é a tarefa.");
+  const ocasiao = String(pedido.ocasiao || "").trim();
+  lerTarefas().aba.appendRow([Utilities.getUuid().slice(0, 8), para, tarefa, prazo, ocasiao, eu.nome, agora(), ""]);
+}
+
+function acharTarefa(pedido) {
+  const dados = lerTarefas();
+  const tarefa = dados.linhas.find((t) => t.id === pedido.id);
+  if (!tarefa) throw falha("Essa tarefa não existe mais. Atualize a página.");
+  return { aba: dados.aba, tarefa };
+}
+
+function concluirTarefa(pedido, eu) {
+  const { aba, tarefa } = acharTarefa(pedido);
+  if (!eu.coordenador && !mesmoNome(tarefa.para, eu.nome)) throw falha("Essa tarefa é de outra pessoa.");
+  aba.getRange(tarefa.linha, 8).setValue(pedido.feita ? agora() : ""); // coluna "Feita em"
+}
+
+function removerTarefa(pedido) {
+  const { aba, tarefa } = acharTarefa(pedido);
+  aba.deleteRow(tarefa.linha);
+}
+
+// ---------------------------------------------------------------------------
 // AJUDANTES
+
+// Abas que nasceram depois da planilha de dados: são criadas na primeira vez que alguém usa.
+// Tudo como texto, para o Sheets não transformar datas e horários.
+function abaDeDados(nome, cabecalho) {
+  const planilha = planilhaDeDados();
+  let aba = planilha.getSheetByName(nome);
+  if (!aba) {
+    aba = planilha.insertSheet(nome);
+    aba.getRange(1, 1, aba.getMaxRows(), cabecalho.length).setNumberFormat("@");
+    aba.appendRow(cabecalho);
+    aba.setFrozenRows(1);
+  }
+  return aba;
+}
+
+// "2026-11-22 18:30": dá para ordenar e comparar como texto
+function agora() {
+  return Utilities.formatDate(new Date(), FUSO, "yyyy-MM-dd HH:mm");
+}
+
+function mesmoNome(a, b) {
+  return !!a && normalizar(a) === normalizar(b || "");
+}
+
 function falha(mensagem, codigo) {
   const erro = new Error(mensagem);
   erro.codigo = codigo;
