@@ -647,8 +647,8 @@
   }
 
   function desenharEventos() {
-    // sem banner primeiro; depois por data
-    const eventos = [...dados.eventos].sort((a, b) => (!!a.banner - !!b.banner) || (a.data || "9").localeCompare(b.data || "9"));
+    // por data (os sem data no fim); os sem banner continuam destacados em vermelho
+    const eventos = [...dados.eventos].sort((a, b) => (a.data || "9").localeCompare(b.data || "9") || (a.hora || "").localeCompare(b.hora || ""));
     if (!eventos.length) {
       $("listaEventos").replaceChildren(criar("li", { className: "vazio", textContent: "Nenhum evento futuro na agenda." }));
       return;
