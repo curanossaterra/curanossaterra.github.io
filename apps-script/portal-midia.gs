@@ -20,12 +20,13 @@ const PASTA_BANNERS = "1DaQeI7zVccO5z1eIeX5PmqsRyU8najSt";
 const GOATCOUNTER_CHAVE = "hszivhndae8x23l8u0ysh6d0m1fv405l8nj6wi165ai3njsdgq";
 
 // Usado só na primeira vez, para montar a planilha de dados.
-const FUNCOES_INICIAIS = ["Live", "Staff Live / Luzes", "Foto / Vídeo / Postagem", "Telão", "Som"];
+// Uma função repetida = duas vagas na escala (ex.: duas pessoas na Foto / Vídeo / Postagem).
+const FUNCOES_INICIAIS = ["Live", "Staff Live / Luzes", "Foto / Vídeo / Postagem", "Foto / Vídeo / Postagem", "Telão / Luzes", "Som"];
 const EQUIPE_INICIAL = [
   ["Bia", "Live"],
   ["Ana", "Staff Live / Luzes"],
   ["Mel", "Foto / Vídeo / Postagem"],
-  ["Jhow", "Telão"],
+  ["Jhow", "Telão / Luzes"],
   ["Agno", "Som"],
 ];
 
@@ -34,6 +35,7 @@ const EQUIPE_INICIAL = [
 function instalar() {
   const planilha = planilhaDeDados();
   Logger.log("Pronto! Planilha de dados: " + planilha.getUrl());
+  ajustarFuncoes();
   const pasta = DriveApp.getFolderById(PASTA_BANNERS);
   Logger.log("Pasta de banners: " + pasta.getName());
   // teste de envio: cria um arquivinho na pasta, tenta liberar o link e joga na lixeira
@@ -298,6 +300,30 @@ function liberarLink(arquivo) {
   arquivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 }
 
+// Ajuste das funções (roda pelo instalar; pode rodar de novo sem problema):
+//  - "Telão" passa a ser "Telão / Luzes" (na escala e na equipe);
+//  - "Foto / Vídeo / Postagem" ganha uma segunda vaga (uma coluna a mais, logo ao lado).
+function ajustarFuncoes() {
+  const planilha = planilhaDeDados();
+  const escala = planilha.getSheetByName("Escala");
+  const cabecalho = escala.getRange(1, 1, 1, escala.getLastColumn()).getDisplayValues()[0];
+  const telao = cabecalho.findIndex((c) => normalizar(c) === "telao");
+  if (telao >= 0) escala.getRange(1, telao + 1).setValue("Telão / Luzes");
+  const fotos = cabecalho.map((c, i) => (normalizar(c) === normalizar("Foto / Vídeo / Postagem") ? i : -1)).filter((i) => i >= 0);
+  if (fotos.length === 1) {
+    escala.insertColumnAfter(fotos[0] + 1);
+    escala.getRange(1, fotos[0] + 2).setValue("Foto / Vídeo / Postagem");
+  }
+  const equipe = planilha.getSheetByName("Equipe");
+  if (equipe.getLastRow() > 1) {
+    const funcoes = equipe.getRange(2, 3, equipe.getLastRow() - 1, 1);
+    funcoes.setValues(funcoes.getDisplayValues().map(([texto]) => [
+      texto.split(/[,;]/).map((f) => f.trim()).filter(Boolean).map((f) => (normalizar(f) === "telao" ? "Telão / Luzes" : f)).join(", "),
+    ]));
+  }
+  Logger.log("Funções da escala: " + lerEscala().funcoes.join(" | "));
+}
+
 // ---------------------------------------------------------------------------
 // PLANILHA DE DADOS (particular): Equipe e Escala.
 function planilhaDeDados() {
@@ -373,7 +399,12 @@ function lerEscala() {
   const tabela = aba.getDataRange().getDisplayValues();
   const cabecalho = tabela[0].map((c) => c.trim());
   const fimFuncoes = cabecalho.findIndex((c) => normalizar(c) === "descanso");
-  const funcoes = cabecalho.slice(2, fimFuncoes);
+  // função repetida = mais uma vaga; a segunda vira "Nome (2)", para cada vaga ter a sua pessoa
+  const vistas = {};
+  const funcoes = cabecalho.slice(2, fimFuncoes).map((c) => {
+    vistas[c] = (vistas[c] || 0) + 1;
+    return vistas[c] > 1 ? `${c} (${vistas[c]})` : c;
+  });
   const linhas = tabela.slice(1).map((l, i) => {
     const pessoas = {};
     funcoes.forEach((f, j) => { if (l[2 + j].trim()) pessoas[f] = l[2 + j].trim(); });

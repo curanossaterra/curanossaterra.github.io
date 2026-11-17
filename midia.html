@@ -506,6 +506,9 @@
     return m ? `https://lh3.googleusercontent.com/d/${m[1]}=w600` : "";
   }
   // separa a lista em meses, como na agenda do site
+  // a mesma função pode ter mais de uma vaga na escala: "Foto / Vídeo / Postagem (2)" -> "Foto / Vídeo / Postagem"
+  const funcaoBase = (f) => f.replace(/ \(\d+\)$/, "");
+
   function porMes(itens, desenharItem) {
     const lista = [];
     let mesAtual = "";
@@ -705,7 +708,7 @@
       Object.values(o.escala.pessoas).some((p) => mesmoNome(p, eu.nome)) || normalizar(o.escala.descanso).includes(normalizar(eu.nome))
     ));
     $("minhasEscalas").replaceChildren(...(minhas.length ? porMes(minhas, (o) => {
-      const funcoes = Object.entries(o.escala.pessoas).filter(([, p]) => mesmoNome(p, eu.nome)).map(([f]) => f);
+      const funcoes = [...new Set(Object.entries(o.escala.pessoas).filter(([, p]) => mesmoNome(p, eu.nome)).map(([f]) => funcaoBase(f)))];
       return criar("li", { className: "item" },
         criar("span", { className: "dia", textContent: rotuloDia(o.data, o.hora) }),
         criar("strong", { textContent: o.nome }),
@@ -738,7 +741,7 @@
     historico.forEach((l) => Object.entries(l.pessoas).forEach(([f, n]) => {
       const p = (vezes[n] = vezes[n] || { total: 0, funcoes: {} });
       p.total++;
-      p.funcoes[f] = (p.funcoes[f] || 0) + 1;
+      p.funcoes[funcaoBase(f)] = (p.funcoes[funcaoBase(f)] || 0) + 1;
     }));
     // quem não apareceu em nenhuma das 4 também entra (com 0), para ninguém ser esquecido
     dados.equipe.forEach((m) => { if (!Object.keys(vezes).some((n) => mesmoNome(n, m.nome))) vezes[m.nome] = { total: 0, funcoes: {} }; });
@@ -825,7 +828,17 @@
       $("listaEventos").replaceChildren(criar("li", { className: "vazio", textContent: "Nenhum evento futuro na agenda." }));
       return;
     }
-    $("listaEventos").replaceChildren(...eventos.map((e) => {
+    // separados por mês, como na Agenda do Portal da Cura; os sem data ficam no fim
+    const comData = eventos.filter((e) => e.data);
+    const semData = eventos.filter((e) => !e.data);
+    $("listaEventos").replaceChildren(
+      ...porMes(comData, itemEvento),
+      ...(semData.length ? [criar("li", { className: "mes", textContent: "Sem data" }), ...semData.map(itemEvento)] : []),
+    );
+  }
+
+  function itemEvento(e) {
+    {
       const miniatura = e.banner && imagemDoDrive(e.banner);
       const form = formBanner(e);
       form.hidden = !!e.banner;
@@ -848,7 +861,7 @@
         ),
         form,
       );
-    }));
+    }
   }
 
   // "Enviado por Bia · 17/11 às 15:58"
@@ -1024,7 +1037,7 @@
       // quem tem a função aparece primeiro; os outros ficam embaixo, para cobrir falta
       // e, dentro de cada grupo, quem confirmou presença vem antes; quem disse que não vai, por último
       const peso = (n) => ({ sim: 0, nao: 2 }[resposta(n)] ?? 1);
-      const daFuncao = dados.equipe.filter((m) => m.funcoes.includes(f)).map((m) => m.nome).sort((a, b) => peso(a) - peso(b));
+      const daFuncao = dados.equipe.filter((m) => m.funcoes.includes(funcaoBase(f))).map((m) => m.nome).sort((a, b) => peso(a) - peso(b));
       const outros = dados.equipe.map((m) => m.nome).filter((n) => !daFuncao.includes(n)).sort((a, b) => peso(a) - peso(b));
       const atual = pessoas[f] || "";
       const opcao = (n) => criar("option", {
@@ -1135,7 +1148,7 @@
     $("membroNome").value = m ? m.nome : "";
     $("membroEmail").value = m ? m.email : "";
     $("membroCoordenador").checked = !!(m && m.coordenador);
-    $("membroFuncoes").replaceChildren(...dados.funcoes.map((f) => criar("label", { className: "marcar" },
+    $("membroFuncoes").replaceChildren(...[...new Set(dados.funcoes.map(funcaoBase))].map((f) => criar("label", { className: "marcar" },
       criar("input", { type: "checkbox", value: f, checked: !!(m && m.funcoes.includes(f)) }), f,
     )));
     $("membroRemover").hidden = !m;
