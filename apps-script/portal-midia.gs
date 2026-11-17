@@ -34,7 +34,11 @@ const EQUIPE_INICIAL = [
 function instalar() {
   const planilha = planilhaDeDados();
   Logger.log("Pronto! Planilha de dados: " + planilha.getUrl());
-  Logger.log("Pasta de banners: " + DriveApp.getFolderById(PASTA_BANNERS).getName());
+  const pasta = DriveApp.getFolderById(PASTA_BANNERS);
+  Logger.log("Pasta de banners: " + pasta.getName());
+  // teste de envio: cria um arquivinho na pasta e joga na lixeira (garante a permissão de criar arquivos)
+  pasta.createFile("teste do portal.txt", "pode apagar").setTrashed(true);
+  Logger.log("Envio de banners: OK");
 }
 
 function doPost(e) {

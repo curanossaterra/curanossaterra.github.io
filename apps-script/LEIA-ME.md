@@ -25,6 +25,7 @@ Dica: faça tudo numa **janela anônima** do navegador, entrando só na conta da
 
 1. Entre em https://script.google.com e clique em **Novo projeto**. Dê o nome **Portal da Mídia**.
 2. Apague o que estiver escrito e cole todo o conteúdo do arquivo `apps-script/portal-midia.gs`.
+   Em **Configurações do projeto** (⚙️), marque **Mostrar arquivo de manifesto "appsscript.json" no editor**. Abra esse arquivo, apague tudo e cole o conteúdo de `apps-script/appsscript.json`, que traz as permissões (inclusive a de criar arquivos no Drive para os banners).
 3. Na linha `const CLIENT_ID = "COLE_AQUI.apps.googleusercontent.com";`, troque pelo ID do cliente da Parte 1. Clique no disquete para salvar.
 4. No menu de cima, escolha a função **instalar** e clique em **Executar**.
    - O Google vai pedir permissão. Clique em **Avançado → Acessar Portal da Mídia** e depois em **Permitir**.
