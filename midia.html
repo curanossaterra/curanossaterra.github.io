@@ -58,6 +58,13 @@
   .icone.destaque { flex: none; width: 46px; height: 46px; border: 0; background: var(--destaque); color: var(--botao-texto); }
   .icone.destaque:hover { color: var(--botao-texto); filter: brightness(1.08); }
   .icone.destaque svg { width: 22px; height: 22px; }
+  /* cofre de senhas */
+  .acesso-linha { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .acesso-linha .rotulo { flex: none; width: 62px; font-size: 12px; color: var(--texto-suave); }
+  .acesso-linha .valor { flex: 1; min-width: 0; overflow-wrap: anywhere; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; }
+  .acesso-linha .link-suave { flex: none; padding: 6px 12px; }
+  .acesso-obs { margin-top: 10px; font-size: 13px; color: var(--texto-suave); white-space: pre-wrap; }
+  dialog textarea.campo { min-height: 80px; resize: vertical; font: inherit; }
   .icone svg { width: 20px; height: 20px; }
 
   /* VISITAS DO SITE (visitas.js) */
@@ -265,6 +272,7 @@
       <p id="subtitulo">Escala, eventos e banners da equipe</p>
     </div>
     <div class="acoes" id="acoesTopo" hidden>
+      <button class="icone" id="abrirCofre" type="button" aria-label="Cofre de senhas" title="Cofre de senhas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></button>
       <button class="icone" id="atualizar" type="button" aria-label="Atualizar" title="Atualizar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
       <button class="icone" id="sair" type="button" aria-label="Sair" title="Sair"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l5-5-5-5"/><path d="M15 12H4"/></svg></button>
     </div>
@@ -370,6 +378,16 @@
         </div>
       </section>
 
+      <section data-painel="cofre" hidden>
+        <div class="cartao">
+          <div class="cartao-topo">
+            <p class="sub" style="margin-top:0" id="cofreExplica">Usuário e senha das redes sociais e demais acessos da Mídia. Não compartilhe fora da equipe.</p>
+            <button class="icone destaque" type="button" id="novaSenha" aria-label="Adicionar acesso" title="Adicionar acesso" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+          </div>
+        </div>
+        <ul class="lista" id="listaCofre"></ul>
+      </section>
+
       <!-- só o líder vê estas duas seções -->
       <section data-painel="tarefas" hidden>
         <div class="cartao">
@@ -412,6 +430,37 @@
   </dialog>
 
   <!-- nova tarefa para alguém da equipe (líder) -->
+  <dialog id="janelaSenha">
+    <form id="formSenha" autocomplete="off">
+      <h2 id="senhaTitulo">Novo acesso</h2>
+      <label>Nome
+        <input class="campo" id="senhaNome" required placeholder="Ex.: Instagram, YouTube, e-mail da Mídia">
+      </label>
+      <label>Usuário / e-mail
+        <input class="campo" id="senhaUsuario" autocapitalize="off" spellcheck="false">
+      </label>
+      <label>Senha
+        <input class="campo" id="senhaSenha" type="password" autocomplete="new-password" spellcheck="false">
+      </label>
+      <label class="marcar"><input type="checkbox" id="senhaMostrar"> Mostrar a senha</label>
+      <label>Obs.
+        <textarea class="campo" id="senhaObs" placeholder="Ex.: código de verificação vai para o celular da Bia"></textarea>
+      </label>
+      <label>Quem vê
+        <select class="campo" id="senhaQuem">
+          <option value="equipe">Toda a equipe da Mídia</option>
+          <option value="lider">Só o líder</option>
+        </select>
+      </label>
+      <p class="erro" id="senhaErro" role="alert"></p>
+      <div class="botoes">
+        <button class="link-suave remover" type="button" id="senhaRemover">Remover</button>
+        <button class="link-suave" type="button" data-fechar>Cancelar</button>
+        <button class="principal" type="submit">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="janelaVer">
     <h2 id="verTitulo"></h2>
     <p class="sub" id="verQuem"></p>
@@ -574,6 +623,8 @@
   function sair(mensagem = "") {
     token = null;
     dados = null;
+    cofre = [];
+    $("listaCofre").replaceChildren();
     try { localStorage.removeItem(CHAVE_LOGIN); } catch {}
     if (window.google && google.accounts) google.accounts.id.disableAutoSelect();
     $("telaPortal").hidden = true;
@@ -1224,8 +1275,116 @@
   });
 
   // ---------------------------------------------------------------------------
+  // COFRE DE SENHAS (as senhas só chegam quando a pessoa abre o cofre; não ficam guardadas no celular)
+  var cofre = []; // var: sair() pode limpar antes desta linha rodar
+  async function abrirCofre() {
+    const lider = dados.eu.coordenador;
+    $("novaSenha").hidden = !lider;
+    $("listaCofre").replaceChildren(criar("li", { className: "vazio", textContent: "Abrindo o cofre…" }));
+    try {
+      cofre = (await pedir("cofre")).cofre || [];
+      desenharCofre();
+    } catch (e) {
+      $("listaCofre").replaceChildren(criar("li", { className: "vazio erro", textContent: e.message }));
+    }
+  }
+
+  function copiar(texto, oQue) {
+    navigator.clipboard.writeText(texto).then(() => avisar(`${oQue} copiado.`), () => avisar("Não consegui copiar. Toque em Mostrar e copie à mão.", true));
+  }
+
+  function desenharCofre() {
+    const lider = dados.eu.coordenador;
+    if (!cofre.length) {
+      $("listaCofre").replaceChildren(criar("li", { className: "vazio", textContent: lider ? "Nenhum acesso ainda. Toque no + para cadastrar." : "Nenhum acesso liberado para a equipe ainda." }));
+      return;
+    }
+    $("listaCofre").replaceChildren(...cofre.map((c) => {
+      const valorSenha = criar("span", { className: "valor", textContent: c.senha ? "••••••••" : "—" });
+      let visivel = false;
+      return criar("li", { className: "item" },
+        criar("div", { className: "topo" },
+          criar("div", {},
+            criar("strong", { textContent: c.nome }),
+            lider && c.soLider ? criar("span", { className: "chip", textContent: "Só o líder", style: "margin-left:8px" }) : null,
+          ),
+          lider ? criar("button", { type: "button", className: "link-suave", textContent: "Editar", onclick: () => abrirSenha(c) }) : null,
+        ),
+        c.usuario ? criar("div", { className: "acesso-linha" },
+          criar("span", { className: "rotulo", textContent: "Usuário" }),
+          criar("span", { className: "valor", textContent: c.usuario }),
+          criar("button", { type: "button", className: "link-suave", textContent: "Copiar", onclick: () => copiar(c.usuario, "Usuário") }),
+        ) : null,
+        c.senha ? criar("div", { className: "acesso-linha" },
+          criar("span", { className: "rotulo", textContent: "Senha" }),
+          valorSenha,
+          criar("button", { type: "button", className: "link-suave", textContent: "Mostrar", onclick: (ev) => {
+            visivel = !visivel;
+            valorSenha.textContent = visivel ? c.senha : "••••••••";
+            ev.currentTarget.textContent = visivel ? "Ocultar" : "Mostrar";
+          } }),
+          criar("button", { type: "button", className: "link-suave", textContent: "Copiar", onclick: () => copiar(c.senha, "Senha") }),
+        ) : null,
+        c.obs ? criar("p", { className: "acesso-obs", textContent: c.obs }) : null,
+        lider && c.atualizadoPor ? criar("small", { textContent: `Atualizado por ${c.atualizadoPor} em ${c.atualizadoEm.slice(8, 10)}/${c.atualizadoEm.slice(5, 7)}` }) : null,
+      );
+    }));
+  }
+
+  let senhaAberta = null;
+  function abrirSenha(c) {
+    senhaAberta = c;
+    $("senhaTitulo").textContent = c ? `Editar ${c.nome}` : "Novo acesso";
+    $("senhaNome").value = c ? c.nome : "";
+    $("senhaUsuario").value = c ? c.usuario : "";
+    $("senhaSenha").value = c ? c.senha : "";
+    $("senhaSenha").type = "password";
+    $("senhaMostrar").checked = false;
+    $("senhaObs").value = c ? c.obs : "";
+    $("senhaQuem").value = c && c.soLider ? "lider" : "equipe";
+    $("senhaRemover").hidden = !c;
+    $("senhaErro").textContent = "";
+    $("janelaSenha").showModal();
+  }
+  $("novaSenha").addEventListener("click", () => abrirSenha(null));
+  $("senhaMostrar").addEventListener("change", () => { $("senhaSenha").type = $("senhaMostrar").checked ? "text" : "password"; });
+
+  async function mexerNoCofre(acao, extra, aviso) {
+    const resposta = await pedir(acao, extra);
+    cofre = resposta.cofre || [];
+    desenharCofre();
+    $("janelaSenha").close();
+    avisar(aviso);
+  }
+  $("formSenha").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const botao = ev.submitter;
+    botao.disabled = true;
+    try {
+      await mexerNoCofre("salvarSenha", {
+        id: senhaAberta ? senhaAberta.id : "",
+        nome: $("senhaNome").value, usuario: $("senhaUsuario").value, senha: $("senhaSenha").value,
+        obs: $("senhaObs").value, soLider: $("senhaQuem").value === "lider",
+      }, "Acesso salvo no cofre.");
+    } catch (e) {
+      $("senhaErro").textContent = e.message;
+    } finally {
+      botao.disabled = false;
+    }
+  });
+  $("senhaRemover").addEventListener("click", async () => {
+    if (!confirm(`Remover "${senhaAberta.nome}" do cofre?`)) return;
+    try {
+      await mexerNoCofre("removerSenha", { id: senhaAberta.id }, "Acesso removido do cofre.");
+    } catch (e) {
+      $("senhaErro").textContent = e.message;
+    }
+  });
+  $("janelaSenha").addEventListener("close", () => { $("senhaSenha").value = ""; });
+
+  // ---------------------------------------------------------------------------
   // NAVEGAÇÃO E BOTÕES
-  const TITULOS = { minhas: "Início", escala: "Escala", eventos: "Eventos", visitas: "Estatísticas do Portal da Cura", tarefas: "Tarefas da equipe", equipe: "Equipe da Mídia" };
+  const TITULOS = { minhas: "Início", escala: "Escala", eventos: "Eventos", visitas: "Estatísticas do Portal da Cura", tarefas: "Tarefas da equipe", equipe: "Equipe da Mídia", cofre: "Cofre de senhas" };
   function mostrarSecao(nome) {
     document.querySelectorAll(".menu button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.secao === nome)));
     $("tituloSecao").textContent = TITULOS[nome];
@@ -1233,9 +1392,11 @@
     document.querySelectorAll("[data-painel]").forEach((p) => { p.hidden = p.dataset.painel !== nome; });
     avisar("");
     if (nome === "visitas") Visitas.abrir();
+    if (nome === "cofre") abrirCofre(); else $("listaCofre").replaceChildren(); // ao sair do cofre, as senhas somem da tela
   }
   document.querySelectorAll(".menu button").forEach((b) => b.addEventListener("click", () => mostrarSecao(b.dataset.secao)));
   $("irEventos").addEventListener("click", () => mostrarSecao("eventos"));
+  $("abrirCofre").addEventListener("click", () => mostrarSecao("cofre"));
   $("maisSemanas").addEventListener("click", () => { semanas += 6; desenhar(); });
   $("atualizar").addEventListener("click", () => {
     if (!document.querySelector('[data-painel="visitas"]').hidden) Visitas.carregar();

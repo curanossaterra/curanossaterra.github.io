@@ -57,6 +57,7 @@ function doPost(e) {
     const eu = quemEstaUsando(pedido.token);
     if (pedido.acao === "ping") resposta = { ok: true }; // só registra o acesso (feito em quemEstaUsando)
     else if (pedido.acao === "visitas") resposta = visitas(pedido);
+    else if (/^(cofre|salvarSenha|removerSenha)$/.test(pedido.acao)) resposta = cofre(pedido, eu);
     else resposta = executar(pedido, eu);
   } catch (err) {
     resposta = { erro: err.message, codigo: err.codigo || "" };
@@ -494,6 +495,52 @@ function concluirTarefa(pedido, eu) {
 function removerTarefa(pedido) {
   const { aba, tarefa } = acharTarefa(pedido);
   aba.deleteRow(tarefa.linha);
+}
+
+// ---------------------------------------------------------------------------
+// COFRE DE SENHAS: usuário e senha das redes sociais e demais acessos (aba "Cofre" da planilha particular).
+// As senhas NÃO vão junto com o resto dos dados: só quando a pessoa abre o cofre.
+// O líder cadastra, edita e remove; em cada acesso escolhe se toda a equipe vê ou só o líder.
+function lerCofre() {
+  const aba = abaDeDados("Cofre", ["ID", "Nome", "Usuário", "Senha", "Obs.", "Quem vê", "Atualizado por", "Atualizado em"]);
+  const linhas = aba.getDataRange().getDisplayValues().slice(1)
+    .map((l, i) => ({
+      linha: i + 2, id: l[0].trim(), nome: l[1].trim(), usuario: l[2], senha: l[3], obs: l[4],
+      soLider: normalizar(l[5]) !== "equipe", atualizadoPor: l[6].trim(), atualizadoEm: l[7].trim(),
+    }))
+    .filter((c) => c.id && c.nome);
+  return { aba, linhas };
+}
+
+function cofre(pedido, eu) {
+  if (pedido.acao !== "cofre") {
+    if (!eu.coordenador) throw falha("Só o líder pode mexer no cofre.");
+    const trava = LockService.getScriptLock();
+    trava.waitLock(20000);
+    try {
+      const { aba, linhas } = lerCofre();
+      const existente = pedido.id ? linhas.find((c) => c.id === pedido.id) : null;
+      if (pedido.id && !existente) throw falha("Esse acesso não existe mais. Atualize a página.");
+      if (pedido.acao === "removerSenha") {
+        aba.deleteRow(existente.linha);
+      } else {
+        const nome = String(pedido.nome || "").trim();
+        if (!nome) throw falha("Escreva o nome do acesso (ex.: Instagram).");
+        const valores = [existente ? existente.id : Utilities.getUuid().slice(0, 8), nome, String(pedido.usuario || "").trim(),
+          String(pedido.senha || ""), String(pedido.obs || "").trim(), pedido.soLider ? "Só o líder" : "Equipe", eu.nome, agora()];
+        if (existente) aba.getRange(existente.linha, 1, 1, valores.length).setValues([valores]);
+        else aba.appendRow(valores);
+      }
+    } finally {
+      trava.releaseLock();
+    }
+  }
+  const acessos = lerCofre().linhas
+    .filter((c) => eu.coordenador || !c.soLider)
+    .sort((a, b) => a.nome.localeCompare(b.nome))
+    .map((c) => ({ id: c.id, nome: c.nome, usuario: c.usuario, senha: c.senha, obs: c.obs, soLider: c.soLider,
+      atualizadoPor: c.atualizadoPor, atualizadoEm: c.atualizadoEm }));
+  return { cofre: acessos };
 }
 
 // ---------------------------------------------------------------------------
