@@ -1040,10 +1040,7 @@
       const daFuncao = dados.equipe.filter((m) => m.funcoes.includes(funcaoBase(f))).map((m) => m.nome).sort((a, b) => peso(a) - peso(b));
       const outros = dados.equipe.map((m) => m.nome).filter((n) => !daFuncao.includes(n)).sort((a, b) => peso(a) - peso(b));
       const atual = pessoas[f] || "";
-      const opcao = (n) => criar("option", {
-        value: n, selected: mesmoNome(n, atual),
-        textContent: n + ({ sim: "  ✓ vai", nao: "  ✗ não vai" }[resposta(n)] || ""),
-      });
+      const opcao = (n) => { const op = criar("option", { value: n, selected: mesmoNome(n, atual) }); op.dataset.nome = n; return op; };
       const select = criar("select", { className: "campo", name: f },
         criar("option", { value: "", textContent: "— ninguém —" }),
         daFuncao.map(opcao),
@@ -1056,10 +1053,37 @@
       return criar("label", {}, f, select,
         ultimas.length ? criar("span", { className: "ultimas", textContent: `Últimas: ${ultimas.join(" · ")}` }) : null);
     }));
+    // Para o rodízio, cada nome mostra: se já está em outra função NESTA escala, e o que fez na escala anterior.
+    // "Anterior" = a escala mais recente antes desta data (as que já passaram e as já montadas mais à frente).
+    const vistas = new Set();
+    const anteriores = [...(dados.historico || []), ...dados.escala]
+      .filter((l) => l.data < o.data && !vistas.has(l.data + l.nome) && vistas.add(l.data + l.nome))
+      .sort((a, b) => b.data.localeCompare(a.data));
+    const ultimaDe = (n) => {
+      const l = anteriores.find((x) => Object.values(x.pessoas).some((p) => mesmoNome(p, n)));
+      if (!l) return "";
+      const fs = [...new Set(Object.entries(l.pessoas).filter(([, p]) => mesmoNome(p, n)).map(([f]) => funcaoBase(f)))];
+      return `antes: ${fs.join(" + ")} (${l.data.slice(8, 10)}/${l.data.slice(5, 7)})`;
+    };
+    atualizarRotulosEscala = () => {
+      const selects = [...$("escalaCampos").querySelectorAll("select")];
+      selects.forEach((s) => s.querySelectorAll("option[data-nome]").forEach((op) => {
+        const n = op.dataset.nome;
+        const outra = selects.find((x) => x !== s && mesmoNome(x.value, n));
+        op.textContent = [
+          n + ({ sim: " ✓ vai", nao: " ✗ não vai" }[resposta(n)] || ""),
+          outra ? `já em ${funcaoBase(outra.name)}` : "",
+          ultimaDe(n),
+        ].filter(Boolean).join(" · ");
+      }));
+    };
+    atualizarRotulosEscala();
     $("escalaDescanso").value = o.escala ? o.escala.descanso : "";
     $("escalaErro").textContent = "";
     $("janelaEscala").showModal();
   }
+  let atualizarRotulosEscala = () => {};
+  $("escalaCampos").addEventListener("change", () => atualizarRotulosEscala());
 
   $("formEscala").addEventListener("submit", async (ev) => {
     ev.preventDefault();
