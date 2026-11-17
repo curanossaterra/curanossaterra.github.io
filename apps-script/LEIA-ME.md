@@ -1,6 +1,10 @@
 # Portal da Mídia: como ligar ao Google
 
-Faça uma vez só, no computador, com **a sua conta Google**. Essa conta precisa ter permissão de **editar** a planilha da agenda; se não tiver, peça para a Ariane compartilhar com você como "Editor".
+Faça uma vez só, no computador, com a **conta Google da igreja (Cura)**, e não com uma conta pessoal. Assim o portal fica sendo da igreja, mesmo se alguém da equipe sair. As contas pessoais servem só para entrar no portal (Parte 4).
+
+Essa conta precisa ter permissão de **editar** a planilha da agenda. Se não tiver, peça para a Ariane compartilhar com ela como "Editor".
+
+Dica: faça tudo numa **janela anônima** do navegador, entrando só na conta da Cura. Assim o Google não mistura com a sua conta pessoal.
 
 ## Parte 1: o botão "Fazer login com o Google"
 
@@ -45,7 +49,10 @@ Depois, publique com `git add -A; git commit -m "Portal da Mídia"; git push`.
 
 ## Parte 4: a equipe
 
-Abra https://curanossaterra.github.io/midia.html e entre com a sua conta. Na seção **Equipe**, toque em **Editar** em cada pessoa e coloque o e-mail do Google dela. Só depois disso a pessoa consegue entrar.
+1. Abra https://curanossaterra.github.io/midia.html e entre com a **conta da Cura**. Ela é sempre coordenação.
+2. Na seção **Equipe**, toque em **Editar** no **Jhow** e coloque o seu e-mail **pessoal**. Ele já está marcado como Coordenação.
+3. Faça o mesmo com as outras pessoas, cada uma com o e-mail do Google dela. Só depois disso a pessoa consegue entrar.
+4. Toque em **Sair** e entre de novo com a sua conta pessoal. A partir daí, use sempre ela; a conta da Cura fica de reserva.
 
 ## Depois
 

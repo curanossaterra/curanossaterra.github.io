@@ -8,7 +8,7 @@
 //    Para criar uma função nova na escala, basta acrescentar uma coluna nela (antes de "Descanso").
 
 // Código do cliente do "Fazer login com o Google" (Google Cloud). Não é segredo: pode ficar aqui.
-const CLIENT_ID = "COLE_AQUI.apps.googleusercontent.com";
+const CLIENT_ID = "40038838902-r4jcn68bgja5bs7jb4q13ekur1s69kr3.apps.googleusercontent.com";
 const AGENDA_ID = "1W-44JHBbi8hxsPrDh14T-W76qqavTwYkMUBf5EdHcVQ";
 const FUSO = "America/Sao_Paulo";
 
@@ -165,14 +165,12 @@ function planilhaDeDados() {
   const id = props.getProperty("DADOS_ID");
   if (id) return SpreadsheetApp.openById(id);
 
+  // A conta que instala (a da igreja) é sempre coordenação, mesmo sem estar na lista.
+  // Os e-mails pessoais da equipe são preenchidos depois, pelo portal.
   const planilha = SpreadsheetApp.create("Portal da Mídia (dados)");
-  const dono = Session.getEffectiveUser().getEmail();
   const equipe = planilha.getSheets()[0].setName("Equipe");
   equipe.appendRow(["E-mail", "Nome", "Funções", "Coordenador"]);
-  EQUIPE_INICIAL.forEach(([nome, funcao]) => {
-    const souEu = nome === "Jhow";
-    equipe.appendRow([souEu ? dono : "", nome, funcao, souEu ? "Sim" : ""]);
-  });
+  EQUIPE_INICIAL.forEach(([nome, funcao]) => equipe.appendRow(["", nome, funcao, nome === "Jhow" ? "Sim" : ""]));
   const escala = planilha.insertSheet("Escala");
   escala.getRange("A:A").setNumberFormat("@"); // data como texto (aaaa-mm-dd), sem o Sheets converter
   escala.appendRow(["Data", "Culto / Evento", ...FUNCOES_INICIAIS, "Descanso", "Atualizado por", "Atualizado em"]);
