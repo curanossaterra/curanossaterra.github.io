@@ -399,23 +399,24 @@
   <!-- nova tarefa para alguém da equipe (líder) -->
   <dialog id="janelaTarefa">
     <form id="formTarefa">
-      <h2>Nova tarefa</h2>
+      <h2 id="tarefaTitulo">Nova tarefa</h2>
       <label>Para quem
         <select class="campo" id="tarefaPara" required></select>
       </label>
       <label>O que fazer
         <input class="campo" id="tarefaTexto" required placeholder="Ex.: Preparar os slides dos louvores">
       </label>
-      <label>Para quando
-        <select class="campo" id="tarefaQuando" required></select>
+      <label>Culto ou evento (opcional)
+        <select class="campo" id="tarefaQuando"></select>
       </label>
-      <label id="rotuloOutraData" hidden>Data
-        <input class="campo" id="tarefaPrazo" type="date">
+      <label>Prazo
+        <input class="campo" id="tarefaPrazo" type="date" required>
+        <span class="ultimas">Ao escolher um culto ou evento, o prazo vem com a data dele. Pode mudar.</span>
       </label>
       <p class="erro" id="tarefaErro" role="alert"></p>
       <div class="botoes">
         <button class="link-suave" type="button" data-fechar>Cancelar</button>
-        <button class="principal" type="submit">Criar tarefa</button>
+        <button class="principal" type="submit" id="tarefaSalvar">Criar tarefa</button>
       </div>
     </form>
   </dialog>
@@ -592,9 +593,9 @@
 
   // ---------------------------------------------------------------------------
   // OCASIÕES DA ESCALA: cultos fixos (CULTOS no comum.js) + eventos da agenda + o que já foi escalado
-  function ocasioes() {
+  function ocasioes(quantasSemanas = semanas) {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-    const limite = new Date(hoje); limite.setDate(limite.getDate() + semanas * 7);
+    const limite = new Date(hoje); limite.setDate(limite.getDate() + quantasSemanas * 7);
     const inicio = iso(hoje), fim = iso(limite);
     const porChave = new Map();
     const juntar = (o) => {
@@ -643,7 +644,7 @@
         .then(() => avisar(caixa.checked ? "Tarefa concluída. Obrigado!" : "Tarefa reaberta."))
         .catch((e) => avisar(e.message, true));
     });
-    const prazo = t.prazo ? (t.ocasiao ? `Prazo: ${t.ocasiao} (${rotuloDia(t.prazo)})` : `Prazo: ${rotuloDia(t.prazo)}`) : "";
+    const prazo = t.prazo ? `Prazo: ${rotuloDia(t.prazo)}` : "";
     const atrasada = !t.feitaEm && t.prazo && t.prazo < hoje;
     const detalhes = [mostrarPara ? t.para : "", t.criadaPor ? `por ${t.criadaPor}` : ""].filter(Boolean).join(" · ");
     return criar("li", { className: t.feitaEm ? "item tarefa feita" : "item tarefa" },
@@ -652,12 +653,16 @@
         criar("span", { className: "texto", textContent: t.tarefa }),
         // prazo sempre em vermelho enquanto a tarefa está aberta
         prazo ? criar("small", { className: t.feitaEm ? "" : "prazo", textContent: atrasada ? `${prazo} · Atrasada` : prazo }) : null,
+        t.ocasiao ? criar("small", { textContent: `Para: ${t.ocasiao}` }) : null,
         detalhes ? criar("small", { textContent: detalhes }) : null,
       ),
-      podeRemover ? criar("button", {
-        type: "button", className: "link-suave", textContent: "Remover",
-        onclick: () => { if (confirm(`Remover a tarefa "${t.tarefa}"?`)) api("removerTarefa", { id: t.id }).catch((e) => avisar(e.message, true)); },
-      }) : null,
+      podeRemover ? criar("div", { className: "acoes-evento" },
+        criar("button", { type: "button", className: "link-suave", textContent: "Editar", onclick: () => abrirTarefa(t) }),
+        criar("button", {
+          type: "button", className: "link-suave", textContent: "Remover",
+          onclick: () => { if (confirm(`Remover a tarefa "${t.tarefa}"?`)) api("removerTarefa", { id: t.id }).catch((e) => avisar(e.message, true)); },
+        }),
+      ) : null,
     );
   }
 
@@ -1010,42 +1015,59 @@
   });
 
   // ---------------------------------------------------------------------------
-  // JANELA: NOVA TAREFA (o prazo é um culto/evento da escala, ou outra data)
+  // JANELA: TAREFA (nova ou editar). O culto/evento é opcional; o prazo é obrigatório.
+  // A lista tem os cultos das próximas 8 semanas e TODOS os eventos da agenda (ex.: o banner de um evento de 2027).
   let ocasioesDaTarefa = [];
-  $("novaTarefa").addEventListener("click", () => {
-    ocasioesDaTarefa = ocasioes();
-    $("tarefaPara").replaceChildren(...dados.equipe.map((m) => criar("option", { value: m.nome, textContent: m.nome })));
+  let tarefaAberta = null;
+  const rotuloOcasiao = (o) => `${o.nome} (${rotuloDia(o.data, o.hora)})`;
+
+  function abrirTarefa(t) {
+    tarefaAberta = t;
+    ocasioesDaTarefa = ocasioes(8);
+    dados.eventos.forEach((e) => {
+      const o = { data: e.data, hora: e.hora, nome: arrumarTexto(e.evento) };
+      if (e.data && !ocasioesDaTarefa.some((x) => x.data === o.data && x.nome === o.nome)) ocasioesDaTarefa.push(o);
+    });
+    ocasioesDaTarefa.sort((a, b) => (a.data + a.hora).localeCompare(b.data + b.hora));
+    $("tarefaTitulo").textContent = t ? "Editar tarefa" : "Nova tarefa";
+    $("tarefaSalvar").textContent = t ? "Salvar" : "Criar tarefa";
+    $("tarefaPara").replaceChildren(...dados.equipe.map((m) => criar("option", { value: m.nome, textContent: m.nome, selected: !!t && mesmoNome(m.nome, t.para) })));
     $("tarefaQuando").replaceChildren(
-      criar("option", { value: "", textContent: "Escolha o culto ou evento…" }),
-      ...ocasioesDaTarefa.map((o, i) => criar("option", { value: String(i), textContent: `${o.nome} · ${rotuloDia(o.data, o.hora)}` })),
-      criar("option", { value: "outra", textContent: "Outra data…" }),
+      criar("option", { value: "", textContent: "— nenhum —" }),
+      ...ocasioesDaTarefa.map((o, i) => criar("option", { value: String(i), textContent: rotuloOcasiao(o), selected: !!t && t.ocasiao === rotuloOcasiao(o) })),
     );
-    $("tarefaTexto").value = "";
-    $("tarefaPrazo").value = "";
-    $("rotuloOutraData").hidden = true;
+    // tarefa antiga com um evento que já não está na lista: mantém o que estava
+    if (t && t.ocasiao && !ocasioesDaTarefa.some((o) => t.ocasiao === rotuloOcasiao(o))) {
+      $("tarefaQuando").append(criar("option", { value: "manter", textContent: t.ocasiao, selected: true }));
+    }
+    $("tarefaTexto").value = t ? t.tarefa : "";
+    $("tarefaPrazo").value = t ? t.prazo : "";
     $("tarefaErro").textContent = "";
     $("janelaTarefa").showModal();
-  });
+  }
+  $("novaTarefa").addEventListener("click", () => abrirTarefa(null));
   $("tarefaQuando").addEventListener("change", () => {
-    $("rotuloOutraData").hidden = $("tarefaQuando").value !== "outra";
-    $("tarefaPrazo").required = $("tarefaQuando").value === "outra";
+    const o = ocasioesDaTarefa[Number($("tarefaQuando").value)];
+    if ($("tarefaQuando").value !== "" && o) $("tarefaPrazo").value = o.data;
   });
 
   $("formTarefa").addEventListener("submit", async (ev) => {
     ev.preventDefault();
     const quando = $("tarefaQuando").value;
-    const o = quando === "outra" ? null : ocasioesDaTarefa[Number(quando)];
+    const o = ocasioesDaTarefa[Number(quando)];
+    const ocasiao = quando === "manter" ? tarefaAberta.ocasiao : quando !== "" && o ? rotuloOcasiao(o) : "";
     const botao = ev.submitter;
     botao.disabled = true;
     try {
       await api("salvarTarefa", {
+        id: tarefaAberta ? tarefaAberta.id : "",
         para: $("tarefaPara").value,
         tarefa: $("tarefaTexto").value,
-        prazo: o ? o.data : $("tarefaPrazo").value,
-        ocasiao: o ? o.nome : "",
+        prazo: $("tarefaPrazo").value,
+        ocasiao,
       });
       $("janelaTarefa").close();
-      avisar(`Tarefa criada para ${$("tarefaPara").value}.`);
+      avisar(tarefaAberta ? "Tarefa atualizada." : `Tarefa criada para ${$("tarefaPara").value}.`);
     } catch (e) {
       $("tarefaErro").textContent = e.message;
     } finally {

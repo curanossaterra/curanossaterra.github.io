@@ -358,8 +358,13 @@ function salvarTarefa(pedido, eu) {
   const prazo = String(pedido.prazo || "");
   if (!tarefa) throw falha("Escreva a tarefa.");
   if (!lerEquipe().some((m) => mesmoNome(m.nome, para))) throw falha("Escolha uma pessoa da equipe.");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(prazo)) throw falha("Escolha para quando é a tarefa.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(prazo)) throw falha("Escolha o prazo da tarefa.");
   const ocasiao = String(pedido.ocasiao || "").trim();
+  if (pedido.id) { // editar: troca para quem, o quê, prazo e evento; mantém quem criou e se já foi feita
+    const { aba, tarefa: existente } = acharTarefa(pedido);
+    aba.getRange(existente.linha, 2, 1, 4).setValues([[para, tarefa, prazo, ocasiao]]);
+    return;
+  }
   lerTarefas().aba.appendRow([Utilities.getUuid().slice(0, 8), para, tarefa, prazo, ocasiao, eu.nome, agora(), ""]);
 }
 
