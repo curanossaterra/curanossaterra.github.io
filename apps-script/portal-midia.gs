@@ -97,7 +97,9 @@ function quemEstaUsando(token) {
   if (!token) throw falha("Entre com sua conta Google.", "entrar");
   const cache = CacheService.getScriptCache();
   const chave = "t" + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, token));
-  let email = cache.get(chave);
+  // guarda e-mail e nome da conta Google por alguns minutos, para não consultar o Google a cada clique
+  let email, nomeGoogle;
+  try { ({ email, nomeGoogle } = JSON.parse(cache.get(chave)) || {}); } catch (e) {} // formato antigo: consulta de novo
   if (!email) {
     const r = UrlFetchApp.fetch("https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(token), { muteHttpExceptions: true });
     const info = JSON.parse(r.getContentText() || "{}");
@@ -105,13 +107,15 @@ function quemEstaUsando(token) {
       throw falha("Sua entrada expirou. Entre de novo.", "entrar");
     }
     email = String(info.email).toLowerCase();
+    nomeGoogle = info.given_name || info.name || "";
     const segundosRestantes = Math.floor(Number(info.exp) - Date.now() / 1000);
-    if (segundosRestantes > 5) cache.put(chave, email, Math.min(600, segundosRestantes));
+    if (segundosRestantes > 5) cache.put(chave, JSON.stringify({ email, nomeGoogle }), Math.min(600, segundosRestantes));
   }
   const dono = Session.getEffectiveUser().getEmail().toLowerCase();
   const membro = lerEquipe().find((m) => m.email === email);
   if (membro) return Object.assign({}, membro, { coordenador: membro.coordenador || email === dono });
-  if (email === dono) return { email, nome: "Líder", funcoes: [], coordenador: true };
+  // a conta da igreja, fora da lista da equipe: usa o nome da conta Google
+  if (email === dono) return { email, nome: nomeGoogle || "Líder", funcoes: [], coordenador: true };
   throw falha(`O e-mail ${email} ainda não está na equipe da Mídia. Peça para o líder cadastrar você.`, "sem-acesso");
 }
 

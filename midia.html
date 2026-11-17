@@ -811,7 +811,7 @@
     const campo = criar("input", { type: "url", placeholder: "Cole aqui o link do banner no Google Drive", value: e.banner });
     campo.setAttribute("aria-label", `Link do banner de ${e.evento}`);
     const botao = criar("button", { type: "submit", className: "principal", textContent: "Salvar" });
-    const dica = criar("p", { className: "dica-campo", textContent: 'Arquivo já no Drive? Compartilhar → "Qualquer pessoa com o link" → Copiar link.' });
+    const dica = criar("p", { className: "dica-campo" }); // só aparece se der algum problema com o link
     const form = criar("form", { className: "form-banner" }, campo, botao, dica);
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
