@@ -107,6 +107,7 @@
     background: var(--destaque); color: var(--botao-texto); font-size: 15px; font-weight: 600;
   }
   .principal:disabled { opacity: .6; cursor: wait; }
+  a.principal { display: inline-block; text-decoration: none; }
 
   .cartao { background: var(--cartao); border: 1px solid var(--linha); border-radius: 16px; padding: 18px; margin-top: 14px; }
   .cartao h2 { font-size: 17px; font-weight: 600; }
@@ -189,6 +190,11 @@
   .selo { display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 600; }
   .selo.ok { color: var(--ok); }
   .selo.falta { color: var(--erro); }
+  .quem-enviou { display: block; margin-top: 2px; font-size: 12px; color: var(--texto-suave); }
+  button.banner-mini { padding: 0; border: 0; cursor: zoom-in; overflow: hidden; }
+  button.banner-mini img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ver-imagem { display: block; width: 100%; max-height: 62vh; object-fit: contain; margin-top: 12px; border-radius: 12px; background: var(--fundo); }
+  .link-suave.perigo { color: var(--erro); }
   .form-banner { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
   .campo, .form-banner input {
     flex: 1; min-width: 200px; width: 100%; padding: 12px 14px; border-radius: 12px;
@@ -397,6 +403,16 @@
   </dialog>
 
   <!-- nova tarefa para alguém da equipe (líder) -->
+  <dialog id="janelaVer">
+    <h2 id="verTitulo"></h2>
+    <p class="sub" id="verQuem"></p>
+    <img class="ver-imagem" id="verImagem" alt="">
+    <div class="botoes">
+      <button class="link-suave" type="button" data-fechar>Fechar</button>
+      <a class="principal" id="verBaixar" target="_blank" rel="noopener">Baixar original</a>
+    </div>
+  </dialog>
+
   <dialog id="janelaTarefa">
     <form id="formTarefa">
       <h2 id="tarefaTitulo">Nova tarefa</h2>
@@ -815,21 +831,56 @@
       form.hidden = !!e.banner;
       return criar("li", { className: e.banner ? "item" : "item pendente" },
         criar("div", { className: "topo" },
-          miniatura ? criar("img", { className: "banner-mini", src: miniatura, alt: "", loading: "lazy" }) : null,
+          miniatura ? criar("button", { type: "button", className: "banner-mini", onclick: () => verBanner(e) },
+            criar("img", { src: miniatura, alt: `Ver o banner de ${arrumarTexto(e.evento)}`, loading: "lazy" })) : null,
           criar("div", {},
             criar("span", { className: "dia", textContent: e.data ? rotuloDia(e.data, e.hora) : "Sem data" }),
             criar("strong", { textContent: arrumarTexto(e.evento) }),
             e.ministerio ? criar("small", { textContent: e.ministerio }) : null,
             criar("span", { className: e.banner ? "selo ok" : "selo falta", textContent: e.banner ? "✓ Banner no site" : "Falta o banner" }),
+            e.banner && e.enviadoPor ? criar("span", { className: "quem-enviou", textContent: quemEnviou(e) }) : null,
           ),
           e.banner ? criar("div", { className: "acoes-evento" },
-            idDoDrive(e.banner) ? criar("a", { className: "link-suave", textContent: "Baixar", href: `https://drive.google.com/uc?export=download&id=${idDoDrive(e.banner)}`, target: "_blank", rel: "noopener" }) : null,
+            idDoDrive(e.banner) ? criar("button", { type: "button", className: "link-suave", textContent: "Ver", onclick: () => verBanner(e) }) : null,
             criar("button", { type: "button", className: "link-suave", textContent: "Trocar", onclick: () => { form.hidden = !form.hidden; } }),
+            podeExcluirBanner(e) ? criar("button", { type: "button", className: "link-suave perigo", textContent: "Excluir", onclick: () => excluirBanner(e) }) : null,
           ) : null,
         ),
         form,
       );
     }));
+  }
+
+  // "Enviado por Bia · 17/11 às 15:58"
+  function quemEnviou(e) {
+    const [data, hora] = (e.enviadoEm || "").split(" ");
+    const quando = data ? ` · ${data.slice(8, 10)}/${data.slice(5, 7)}${hora ? ` às ${hora}` : ""}` : "";
+    return `Enviado por ${e.enviadoPor}${quando}`;
+  }
+
+  // ver a imagem grande, com o botão de baixar o arquivo original
+  function verBanner(e) {
+    const id = idDoDrive(e.banner);
+    if (!id) return;
+    $("verTitulo").textContent = arrumarTexto(e.evento);
+    $("verQuem").textContent = [e.data ? rotuloDia(e.data, e.hora) : "", e.enviadoPor ? quemEnviou(e) : ""].filter(Boolean).join(" · ");
+    $("verImagem").src = `https://lh3.googleusercontent.com/d/${id}=w1600`;
+    $("verImagem").alt = `Banner de ${arrumarTexto(e.evento)}`;
+    $("verBaixar").href = `https://drive.google.com/uc?export=download&id=${id}`;
+    $("janelaVer").showModal();
+  }
+
+  // o líder pode excluir qualquer banner; os outros, só os que enviaram
+  const podeExcluirBanner = (e) => dados.eu.coordenador || (!!e.enviadoPor && mesmoNome(e.enviadoPor, dados.eu.nome));
+
+  async function excluirBanner(e) {
+    if (!confirm(`Excluir o banner de "${arrumarTexto(e.evento)}"? Ele sai do site e o evento volta a ficar pendente.`)) return;
+    try {
+      await api("excluirBanner", { linha: e.linha, evento: e.evento, banner: e.banner });
+      avisar("Banner excluído.");
+    } catch (erro) {
+      avisar(erro.message, true);
+    }
   }
 
   const lerBase64 = (blob) => new Promise((ok, erro) => {

@@ -67,8 +67,9 @@ function executar(pedido, eu) {
   const trava = LockService.getScriptLock();
   if (pedido.acao !== "dados") trava.waitLock(20000);
   try {
-    if (pedido.acao === "salvarBanner") salvarBanner(pedido);
-    else if (pedido.acao === "enviarBanner") enviarBanner(pedido);
+    if (pedido.acao === "salvarBanner") salvarBanner(pedido, eu);
+    else if (pedido.acao === "enviarBanner") enviarBanner(pedido, eu);
+    else if (pedido.acao === "excluirBanner") excluirBanner(pedido, eu);
     else if (pedido.acao === "salvarEscala") { exigirCoordenador(); salvarEscala(pedido, eu); }
     else if (pedido.acao === "salvarMembro") { exigirCoordenador(); salvarMembro(pedido); }
     else if (pedido.acao === "removerMembro") { exigirCoordenador(); removerMembro(pedido); }
@@ -103,7 +104,7 @@ function tudo(eu) {
     tarefas: lerTarefas().linhas
       .filter((t) => (eu.coordenador || mesmoNome(t.para, eu.nome)) && (!t.feitaEm || t.feitaEm >= umMesAtras))
       .map((t) => ({ id: t.id, para: t.para, tarefa: t.tarefa, prazo: t.prazo, ocasiao: t.ocasiao, criadaPor: t.criadaPor, feitaEm: t.feitaEm })),
-    eventos: lerAgenda().eventos,
+    eventos: comQuemEnviou(lerAgenda().eventos),
   };
 }
 
@@ -206,19 +207,20 @@ function celulaDoBanner(pedido) {
   return aba.getRange(linha, col.banner + 1);
 }
 
-function salvarBanner(pedido) {
+function salvarBanner(pedido, eu) {
   const link = String(pedido.link || "").trim();
   if (link && !/drive\.google\.com|docs\.google\.com|googleusercontent\.com/.test(link)) {
     throw falha("Use o link do arquivo no Google Drive.");
   }
   celulaDoBanner(pedido).setValue(link);
+  if (link) registrarBanner(link, pedido, eu, "link");
 }
 
 // Recebe a imagem (o arquivo original, ou JPG de alta qualidade quando a página precisou converter),
 // salva na pasta de banners, libera "Qualquer pessoa com o link" e coloca o link na coluna Banner.
 const TIPOS_DE_IMAGEM = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 
-function enviarBanner(pedido) {
+function enviarBanner(pedido, eu) {
   const celula = celulaDoBanner(pedido); // confere antes de criar o arquivo
   const tipo = TIPOS_DE_IMAGEM[pedido.tipo] ? pedido.tipo : "image/jpeg";
   const bytes = Utilities.base64Decode(String(pedido.base64 || ""));
@@ -233,7 +235,61 @@ function enviarBanner(pedido) {
   }
   // o arquivo herda o compartilhamento da pasta; se o Google não deixar mudar aqui, segue assim mesmo
   try { liberarLink(arquivo); } catch (e) { console.warn("Liberar link: " + e.message); }
-  celula.setValue(`https://drive.google.com/file/d/${arquivo.getId()}/view`);
+  const link = `https://drive.google.com/file/d/${arquivo.getId()}/view`;
+  celula.setValue(link);
+  registrarBanner(link, pedido, eu, "enviado");
+}
+
+// ---------------------------------------------------------------------------
+// QUEM ENVIOU CADA BANNER: fica na planilha particular (aba "Banners"), não na da Ariane.
+function lerBanners() {
+  const aba = abaDeDados("Banners", ["Arquivo", "Evento", "Data", "Enviado por", "Enviado em", "Como"]);
+  const linhas = aba.getDataRange().getDisplayValues().slice(1)
+    .map((l) => ({ arquivo: l[0].trim(), evento: l[1].trim(), enviadoPor: l[3].trim(), enviadoEm: l[4].trim(), como: l[5].trim() }))
+    .filter((b) => b.arquivo);
+  return { aba, linhas };
+}
+
+function registrarBanner(link, pedido, eu, como) {
+  const arquivo = idDoDrive(link);
+  if (!arquivo) return;
+  lerBanners().aba.appendRow([arquivo, String(pedido.evento || "").trim(), pedido.data || "", eu.nome, agora(), como]);
+}
+
+// o registro mais novo de cada arquivo
+function registroDoBanner(banners, link) {
+  const arquivo = idDoDrive(link);
+  return arquivo ? banners.filter((b) => b.arquivo === arquivo).pop() : undefined;
+}
+
+function comQuemEnviou(eventos) {
+  const banners = lerBanners().linhas;
+  return eventos.map((e) => {
+    const r = e.banner ? registroDoBanner(banners, e.banner) : undefined;
+    return r ? Object.assign({}, e, { enviadoPor: r.enviadoPor, enviadoEm: r.enviadoEm }) : e;
+  });
+}
+
+// Tira o banner do evento (a coluna Banner fica vazia e o evento volta a ser pendência).
+// Pode excluir: o líder, ou quem enviou. Se a imagem foi enviada pelo portal, ela vai para a lixeira do Drive.
+function excluirBanner(pedido, eu) {
+  const celula = celulaDoBanner(pedido);
+  const atual = celula.getDisplayValue().trim();
+  if (!atual) return;
+  if (atual !== String(pedido.banner || "").trim()) throw falha("O banner mudou enquanto você olhava. Atualize a página.");
+  const registro = registroDoBanner(lerBanners().linhas, atual);
+  if (!eu.coordenador && !(registro && mesmoNome(registro.enviadoPor, eu.nome))) {
+    throw falha("Só o líder ou quem enviou pode excluir este banner.");
+  }
+  celula.setValue("");
+  if (registro && registro.como === "enviado") {
+    try { DriveApp.getFileById(registro.arquivo).setTrashed(true); } catch (e) { console.warn("Lixeira: " + e.message); }
+  }
+}
+
+function idDoDrive(texto) {
+  const m = String(texto).match(/drive\.google\.com\/.*(?:\/d\/|[?&]id=)([\w-]{20,})/);
+  return m ? m[1] : "";
 }
 
 // "Qualquer pessoa com o link" pode ver (para a imagem aparecer no site). Não mexe se já estiver assim.
