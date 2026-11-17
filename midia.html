@@ -145,6 +145,15 @@
     border-radius: 999px; background: var(--erro); color: #3b0d09; font-size: 11px; font-weight: 800;
   }
   .titulo-secao { font-size: 22px; font-weight: 800; margin-top: 22px; }
+  /* histórico da escala (rodízio) */
+  .historico summary { cursor: pointer; font-size: 16px; font-weight: 600; }
+  .historico summary small { color: var(--texto-suave); font-size: 13px; font-weight: 400; }
+  .historico .item { margin-top: 10px; padding: 12px 14px; }
+  .historico .quem { margin-top: 4px; font-size: 13px; line-height: 1.5; color: var(--texto-suave); }
+  .historico .quem b { color: var(--texto); font-weight: 600; }
+  .contagem { list-style: none; display: grid; gap: 6px; margin-top: 8px; font-size: 14px; }
+  .contagem small { color: var(--texto-suave); }
+  .ultimas { display: block; margin-top: 4px; font-size: 12px; font-weight: 400; color: var(--texto-suave); }
   .titulo-secao + .aviso:empty { min-height: 0; margin: 0; } /* sem aviso: o primeiro cartão encosta no título */
   .rodape { margin-top: 28px; text-align: center; }
   .aviso { min-height: 20px; margin-top: 10px; font-size: 14px; color: var(--texto-suave); }
@@ -227,7 +236,10 @@
   .tarefa > div { flex: 1; min-width: 0; }
   .tarefa .texto { font-size: 15px; overflow-wrap: anywhere; }
   .tarefa.feita .texto { text-decoration: line-through; color: var(--texto-suave); }
-  .atrasada { color: var(--erro) !important; }
+  .atrasada, .prazo { color: var(--erro) !important; }
+  .prazo { font-weight: 600; }
+  .acoes-evento { display: flex; flex-direction: column; gap: 6px; flex: none; }
+  .acoes-evento .link-suave { text-align: center; }
   .online { color: var(--ok) !important; font-weight: 600; }
 
   @media (prefers-reduced-motion: reduce) { .conteudo { transition: none; } }
@@ -289,6 +301,10 @@
       </section>
 
       <section data-painel="escala" hidden>
+        <details class="cartao historico" id="historicoEscala" hidden>
+          <summary>Últimas 4 escalas <small>(para fazer o rodízio)</small></summary>
+          <div id="historicoConteudo"></div>
+        </details>
         <ul class="lista" id="listaEscala"></ul>
         <button class="link-suave" type="button" id="maisSemanas" style="margin-top:16px">Mostrar mais semanas</button>
       </section>
@@ -464,6 +480,10 @@
     return m ? `${Number(m[1])}h${m[2] === "00" ? "" : m[2]}` : texto;
   }
   const mesmoNome = (a, b) => normalizar(a || "") === normalizar(b || "") && !!a;
+  function idDoDrive(texto) {
+    const m = texto.match(/drive\.google\.com\/.*(?:\/d\/|[?&]id=)([\w-]{20,})/);
+    return m ? m[1] : "";
+  }
   function imagemDoDrive(texto) {
     const m = texto.match(/drive\.google\.com\/.*(?:\/d\/|[?&]id=)([\w-]{20,})/);
     return m ? `https://lh3.googleusercontent.com/d/${m[1]}=w600` : "";
@@ -623,13 +643,16 @@
         .then(() => avisar(caixa.checked ? "Tarefa concluída. Obrigado!" : "Tarefa reaberta."))
         .catch((e) => avisar(e.message, true));
     });
-    const prazo = t.prazo ? (t.ocasiao ? `para ${t.ocasiao} (${rotuloDia(t.prazo)})` : `até ${rotuloDia(t.prazo)}`) : "";
-    const detalhes = [mostrarPara ? t.para : "", prazo, t.criadaPor ? `por ${t.criadaPor}` : ""].filter(Boolean).join(" · ");
+    const prazo = t.prazo ? (t.ocasiao ? `Prazo: ${t.ocasiao} (${rotuloDia(t.prazo)})` : `Prazo: ${rotuloDia(t.prazo)}`) : "";
+    const atrasada = !t.feitaEm && t.prazo && t.prazo < hoje;
+    const detalhes = [mostrarPara ? t.para : "", t.criadaPor ? `por ${t.criadaPor}` : ""].filter(Boolean).join(" · ");
     return criar("li", { className: t.feitaEm ? "item tarefa feita" : "item tarefa" },
       caixa,
       criar("div", {},
         criar("span", { className: "texto", textContent: t.tarefa }),
-        detalhes ? criar("small", { textContent: detalhes, className: !t.feitaEm && t.prazo && t.prazo < hoje ? "atrasada" : "" }) : null,
+        // prazo sempre em vermelho enquanto a tarefa está aberta
+        prazo ? criar("small", { className: t.feitaEm ? "" : "prazo", textContent: atrasada ? `${prazo} · Atrasada` : prazo }) : null,
+        detalhes ? criar("small", { textContent: detalhes }) : null,
       ),
       podeRemover ? criar("button", {
         type: "button", className: "link-suave", textContent: "Remover",
@@ -685,8 +708,37 @@
     $("contaPendencias").textContent = pendentes;
   }
 
+  // As 4 últimas escalas e quantas vezes cada pessoa serviu nelas: ajuda o líder a fazer o rodízio.
+  function desenharHistorico() {
+    const historico = dados.historico || [];
+    $("historicoEscala").hidden = !historico.length;
+    if (!historico.length) return;
+    const vezes = {}; // nome -> { total, funcoes: { função: n } }
+    historico.forEach((l) => Object.entries(l.pessoas).forEach(([f, n]) => {
+      const p = (vezes[n] = vezes[n] || { total: 0, funcoes: {} });
+      p.total++;
+      p.funcoes[f] = (p.funcoes[f] || 0) + 1;
+    }));
+    // quem não apareceu em nenhuma das 4 também entra (com 0), para ninguém ser esquecido
+    dados.equipe.forEach((m) => { if (!Object.keys(vezes).some((n) => mesmoNome(n, m.nome))) vezes[m.nome] = { total: 0, funcoes: {} }; });
+    const ranking = Object.entries(vezes).sort((a, b) => b[1].total - a[1].total || a[0].localeCompare(b[0]));
+    $("historicoConteudo").replaceChildren(
+      ...historico.map((l) => criar("div", { className: "item" },
+        criar("span", { className: "dia", textContent: rotuloDia(l.data) }),
+        criar("strong", { textContent: l.nome }),
+        criar("p", { className: "quem" }, Object.entries(l.pessoas).flatMap(([f, n], i) => [i ? " · " : "", `${f}: `, criar("b", { textContent: n })])),
+      )),
+      criar("p", { className: "grupo", textContent: "Quantas vezes cada um serviu" }),
+      criar("ul", { className: "contagem" }, ranking.map(([n, p]) => criar("li", {},
+        criar("b", { textContent: `${n}: ${p.total}×` }),
+        p.total ? criar("small", { textContent: "  " + Object.entries(p.funcoes).map(([f, q]) => `${f} ${q}`).join(", ") }) : criar("small", { textContent: "  não serviu nas últimas 4" }),
+      ))),
+    );
+  }
+
   function desenharEscala(lista) {
     const eu = dados.eu;
+    desenharHistorico();
     $("listaEscala").replaceChildren(...porMes(lista, (o) => {
       const pessoas = o.escala ? o.escala.pessoas : {};
       const editar = eu.coordenador
@@ -765,25 +817,39 @@
             e.ministerio ? criar("small", { textContent: e.ministerio }) : null,
             criar("span", { className: e.banner ? "selo ok" : "selo falta", textContent: e.banner ? "✓ Banner no site" : "Falta o banner" }),
           ),
-          e.banner ? criar("button", { type: "button", className: "link-suave", textContent: "Trocar", onclick: () => { form.hidden = !form.hidden; } }) : null,
+          e.banner ? criar("div", { className: "acoes-evento" },
+            idDoDrive(e.banner) ? criar("a", { className: "link-suave", textContent: "Baixar", href: `https://drive.google.com/uc?export=download&id=${idDoDrive(e.banner)}`, target: "_blank", rel: "noopener" }) : null,
+            criar("button", { type: "button", className: "link-suave", textContent: "Trocar", onclick: () => { form.hidden = !form.hidden; } }),
+          ) : null,
         ),
         form,
       );
     }));
   }
 
-  // Diminui a foto (no máx. 1600 px, JPG) antes de enviar: sobe rápido mesmo no 4G e fica leve no site.
+  const lerBase64 = (blob) => new Promise((ok, erro) => {
+    const r = new FileReader();
+    r.onload = () => ok(r.result.split(",")[1]);
+    r.onerror = erro;
+    r.readAsDataURL(blob);
+  });
+
+  // A arte vai para o Drive do jeito que está (qualidade original, para baixar depois).
+  // Só converte o que o site não mostra ou o que é grande demais: vira JPG de alta qualidade (até 3000 px).
+  // O site continua leve: a agenda pede ao Google uma versão menor só para exibir.
   async function prepararImagem(arquivo) {
+    if (["image/jpeg", "image/png", "image/webp"].includes(arquivo.type) && arquivo.size <= 8 * 1024 * 1024) {
+      return { base64: await lerBase64(arquivo), tipo: arquivo.type };
+    }
     const foto = await createImageBitmap(arquivo);
-    const escala = Math.min(1, 1600 / Math.max(foto.width, foto.height));
+    const escala = Math.min(1, 3000 / Math.max(foto.width, foto.height));
     const tela = criar("canvas", { width: Math.round(foto.width * escala), height: Math.round(foto.height * escala) });
     const ctx = tela.getContext("2d");
     ctx.fillStyle = "#fff"; // fundo branco no lugar da transparência do PNG
     ctx.fillRect(0, 0, tela.width, tela.height);
     ctx.drawImage(foto, 0, 0, tela.width, tela.height);
-    const blob = await new Promise((ok) => tela.toBlob(ok, "image/jpeg", 0.88));
-    const dataUrl = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(blob); });
-    return dataUrl.split(",")[1];
+    const blob = await new Promise((ok) => tela.toBlob(ok, "image/jpeg", 0.92));
+    return { base64: await lerBase64(blob), tipo: "image/jpeg" };
   }
 
   function formBanner(e) {
@@ -802,12 +868,12 @@
       botaoEnviar.style.opacity = ".6";
       arquivo.disabled = true;
       try {
-        let base64;
-        try { base64 = await prepararImagem(escolhido); } catch {
+        let imagem;
+        try { imagem = await prepararImagem(escolhido); } catch {
           throw new Error("Não consegui abrir esse arquivo. Use uma imagem JPG ou PNG.");
         }
         situacao.textContent = "Enviando para o Drive…";
-        await api("enviarBanner", { linha: e.linha, evento: e.evento, data: e.data, base64 });
+        await api("enviarBanner", { linha: e.linha, evento: e.evento, data: e.data, base64: imagem.base64, tipo: imagem.tipo });
         avisar(`Banner de "${arrumarTexto(e.evento)}" enviado. Já aparece na agenda do site.`);
       } catch (erro) {
         situacao.classList.add("erro");
@@ -916,7 +982,10 @@
         // nome que está na escala mas saiu da equipe
         atual && !dados.equipe.some((m) => mesmoNome(m.nome, atual)) ? criar("option", { value: atual, textContent: atual, selected: true }) : null,
       );
-      return criar("label", {}, f, select);
+      // quem fez essa função nas últimas escalas (para o rodízio)
+      const ultimas = (dados.historico || []).filter((l) => l.pessoas[f]).map((l) => `${l.pessoas[f]} (${rotuloDia(l.data).split(", ")[1]})`);
+      return criar("label", {}, f, select,
+        ultimas.length ? criar("span", { className: "ultimas", textContent: `Últimas: ${ultimas.join(" · ")}` }) : null);
     }));
     $("escalaDescanso").value = o.escala ? o.escala.descanso : "";
     $("escalaErro").textContent = "";

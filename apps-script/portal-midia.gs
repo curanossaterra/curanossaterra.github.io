@@ -77,12 +77,15 @@ function tudo(eu) {
   const equipe = lerEquipe().map((m) => eu.coordenador ? m : { nome: m.nome, funcoes: m.funcoes, coordenador: m.coordenador });
   const { funcoes, linhas } = lerEscala();
   const ontem = hojeISO(-1);
+  const hoje = hojeISO();
   const umMesAtras = hojeISO(-30);
   return {
     eu: { nome: eu.nome, email: eu.email, funcoes: eu.funcoes, coordenador: eu.coordenador },
     funcoes,
     equipe,
     escala: linhas.filter((l) => l.data >= ontem),
+    // as 4 últimas escalas que já aconteceram, da mais recente para a mais antiga (para o rodízio)
+    historico: linhas.filter((l) => l.data < hoje).sort((a, b) => b.data.localeCompare(a.data)).slice(0, 4),
     disponibilidade: lerDisponibilidade().linhas.filter((l) => l.data >= ontem)
       .map((l) => ({ data: l.data, ocasiao: l.ocasiao, nome: l.nome, resposta: l.resposta })),
     // o líder vê todas; cada pessoa só as dela. Feitas somem depois de 30 dias.
@@ -200,15 +203,18 @@ function salvarBanner(pedido) {
   celulaDoBanner(pedido).setValue(link);
 }
 
-// Recebe a imagem (JPG já diminuído pela página), salva na pasta de banners,
-// libera "Qualquer pessoa com o link" e coloca o link na coluna Banner.
+// Recebe a imagem (o arquivo original, ou JPG de alta qualidade quando a página precisou converter),
+// salva na pasta de banners, libera "Qualquer pessoa com o link" e coloca o link na coluna Banner.
+const TIPOS_DE_IMAGEM = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+
 function enviarBanner(pedido) {
   const celula = celulaDoBanner(pedido); // confere antes de criar o arquivo
+  const tipo = TIPOS_DE_IMAGEM[pedido.tipo] ? pedido.tipo : "image/jpeg";
   const bytes = Utilities.base64Decode(String(pedido.base64 || ""));
   if (!bytes.length) throw falha("A imagem chegou vazia. Tente de novo.");
-  if (bytes.length > 8 * 1024 * 1024) throw falha("Imagem grande demais.");
-  const nome = `${pedido.data || "sem data"} - ${String(pedido.evento).trim()}`.replace(/[\/:*?"<>|]/g, "-") + ".jpg";
-  const arquivo = DriveApp.getFolderById(PASTA_BANNERS).createFile(Utilities.newBlob(bytes, "image/jpeg", nome));
+  if (bytes.length > 12 * 1024 * 1024) throw falha("Imagem grande demais (máximo 12 MB).");
+  const nome = `${pedido.data || "sem data"} - ${String(pedido.evento).trim()}`.replace(/[\/:*?"<>|]/g, "-") + "." + TIPOS_DE_IMAGEM[tipo];
+  const arquivo = DriveApp.getFolderById(PASTA_BANNERS).createFile(Utilities.newBlob(bytes, tipo, nome));
   arquivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   celula.setValue(`https://drive.google.com/file/d/${arquivo.getId()}/view`);
 }
