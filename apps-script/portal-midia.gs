@@ -95,7 +95,7 @@ function tudo(eu) {
   const hoje = hojeISO();
   const umMesAtras = hojeISO(-30);
   return {
-    eu: { nome: eu.nome, email: eu.email, funcoes: eu.funcoes, coordenador: eu.coordenador },
+    eu: { nome: eu.nome, email: eu.email, funcoes: eu.funcoes, coordenador: eu.coordenador, veCofre: podeVerCofre(eu) },
     funcoes,
     equipe,
     escala: linhas.filter((l) => l.data >= ontem),
@@ -356,6 +356,7 @@ function lerEquipe() {
       funcoes: l[2].split(/[,;]/).map((f) => f.trim()).filter(Boolean),
       coordenador: marcado(l[3]),
       ultimoAcesso: (l[4] || "").trim(),
+      veCofre: marcado(l[5] || ""), // coluna F: "Vê o cofre"
     }))
     .filter((m) => m.nome);
 }
@@ -382,8 +383,10 @@ function salvarMembro(pedido) {
   const repetido = lerEquipe().find((m) => m.linha !== linha && ((email && m.email === email) || m.nome.toLowerCase() === nome.toLowerCase()));
   if (repetido) throw falha(`Já existe alguém com esse ${repetido.email === email ? "e-mail" : "nome"} na equipe.`);
   const valores = [[email, nome, (pedido.funcoes || []).join(", "), pedido.coordenador ? "Sim" : ""]];
-  if (linha > 1) aba.getRange(linha, 1, 1, 4).setValues(valores);
-  else aba.appendRow(valores[0]);
+  const linhaFinal = linha > 1 ? linha : aba.getLastRow() + 1;
+  aba.getRange(linhaFinal, 1, 1, 4).setValues(valores);
+  if (!aba.getRange(1, 6).getDisplayValue()) aba.getRange(1, 6).setValue("Vê o cofre");
+  aba.getRange(linhaFinal, 6).setValue(pedido.veCofre ? "Sim" : "");
 }
 
 function removerMembro(pedido) {
@@ -500,19 +503,24 @@ function removerTarefa(pedido) {
 // ---------------------------------------------------------------------------
 // COFRE DE SENHAS: usuário e senha das redes sociais e demais acessos (aba "Cofre" da planilha particular).
 // As senhas NÃO vão junto com o resto dos dados: só quando a pessoa abre o cofre.
-// O líder cadastra, edita e remove; em cada acesso escolhe se toda a equipe vê ou só o líder.
+// Quem vê: o líder e quem tiver "Vê o cofre" marcado no cadastro da equipe. Só o líder cadastra, edita e remove.
+function podeVerCofre(eu) {
+  return !!(eu.coordenador || eu.veCofre);
+}
+
 function lerCofre() {
   const aba = abaDeDados("Cofre", ["ID", "Nome", "Usuário", "Senha", "Obs.", "Quem vê", "Atualizado por", "Atualizado em"]);
   const linhas = aba.getDataRange().getDisplayValues().slice(1)
     .map((l, i) => ({
       linha: i + 2, id: l[0].trim(), nome: l[1].trim(), usuario: l[2], senha: l[3], obs: l[4],
-      soLider: normalizar(l[5]) !== "equipe", atualizadoPor: l[6].trim(), atualizadoEm: l[7].trim(),
+      atualizadoPor: l[6].trim(), atualizadoEm: l[7].trim(),
     }))
     .filter((c) => c.id && c.nome);
   return { aba, linhas };
 }
 
 function cofre(pedido, eu) {
+  if (!podeVerCofre(eu)) throw falha("Você ainda não tem acesso ao cofre. Peça para o líder liberar no seu cadastro.");
   if (pedido.acao !== "cofre") {
     if (!eu.coordenador) throw falha("Só o líder pode mexer no cofre.");
     const trava = LockService.getScriptLock();
@@ -527,7 +535,7 @@ function cofre(pedido, eu) {
         const nome = String(pedido.nome || "").trim();
         if (!nome) throw falha("Escreva o nome do acesso (ex.: Instagram).");
         const valores = [existente ? existente.id : Utilities.getUuid().slice(0, 8), nome, String(pedido.usuario || "").trim(),
-          String(pedido.senha || ""), String(pedido.obs || "").trim(), pedido.soLider ? "Só o líder" : "Equipe", eu.nome, agora()];
+          String(pedido.senha || ""), String(pedido.obs || "").trim(), "", eu.nome, agora()];
         if (existente) aba.getRange(existente.linha, 1, 1, valores.length).setValues([valores]);
         else aba.appendRow(valores);
       }
@@ -536,9 +544,8 @@ function cofre(pedido, eu) {
     }
   }
   const acessos = lerCofre().linhas
-    .filter((c) => eu.coordenador || !c.soLider)
     .sort((a, b) => a.nome.localeCompare(b.nome))
-    .map((c) => ({ id: c.id, nome: c.nome, usuario: c.usuario, senha: c.senha, obs: c.obs, soLider: c.soLider,
+    .map((c) => ({ id: c.id, nome: c.nome, usuario: c.usuario, senha: c.senha, obs: c.obs,
       atualizadoPor: c.atualizadoPor, atualizadoEm: c.atualizadoEm }));
   return { cofre: acessos };
 }

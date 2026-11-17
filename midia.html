@@ -446,12 +446,6 @@
       <label>Obs.
         <textarea class="campo" id="senhaObs" placeholder="Ex.: código de verificação vai para o celular da Bia"></textarea>
       </label>
-      <label>Quem vê
-        <select class="campo" id="senhaQuem">
-          <option value="equipe">Toda a equipe da Mídia</option>
-          <option value="lider">Só o líder</option>
-        </select>
-      </label>
       <p class="erro" id="senhaErro" role="alert"></p>
       <div class="botoes">
         <button class="link-suave remover" type="button" id="senhaRemover">Remover</button>
@@ -508,6 +502,7 @@
       <label>Funções</label>
       <div id="membroFuncoes"></div>
       <label class="marcar"><input type="checkbox" id="membroCoordenador"> Líder (monta a escala e cuida da equipe)</label>
+      <label class="marcar"><input type="checkbox" id="membroCofre"> Vê o cofre de senhas</label>
       <p class="erro" id="membroErro" role="alert"></p>
       <div class="botoes">
         <button class="link-suave remover" type="button" id="membroRemover">Remover</button>
@@ -704,6 +699,7 @@
     $("subtitulo").textContent = ["Portal da Mídia", eu.coordenador ? "Líder" : "", ...eu.funcoes].filter(Boolean).join(" · ");
     $("abaLider").hidden = !eu.coordenador;
     $("abaTarefas").hidden = !eu.coordenador;
+    $("abrirCofre").hidden = !(eu.coordenador || eu.veCofre); // o cadeado só aparece para quem o líder liberou
 
     const lista = ocasioes();
     desenharMinhas(lista);
@@ -1077,6 +1073,7 @@
           criar("div", { className: "chips", style: "margin-top:8px" },
             m.funcoes.map((f) => criar("span", { className: "chip", textContent: f })),
             m.coordenador ? criar("span", { className: "chip", textContent: "Líder" }) : null,
+            m.veCofre && !m.coordenador ? criar("span", { className: "chip", textContent: "🔒 Cofre" }) : null,
           ),
         ),
         criar("button", { type: "button", className: "link-suave", textContent: "Editar", onclick: () => abrirMembro(m) }),
@@ -1233,6 +1230,7 @@
     $("membroNome").value = m ? m.nome : "";
     $("membroEmail").value = m ? m.email : "";
     $("membroCoordenador").checked = !!(m && m.coordenador);
+    $("membroCofre").checked = !!(m && m.veCofre);
     $("membroFuncoes").replaceChildren(...[...new Set(dados.funcoes.map(funcaoBase))].map((f) => criar("label", { className: "marcar" },
       criar("input", { type: "checkbox", value: f, checked: !!(m && m.funcoes.includes(f)) }), f,
     )));
@@ -1253,6 +1251,7 @@
         email: $("membroEmail").value,
         funcoes: [...$("membroFuncoes").querySelectorAll("input:checked")].map((c) => c.value),
         coordenador: $("membroCoordenador").checked,
+        veCofre: $("membroCofre").checked,
       });
       $("janelaMembro").close();
       avisar("Equipe atualizada.");
@@ -1306,7 +1305,6 @@
         criar("div", { className: "topo" },
           criar("div", {},
             criar("strong", { textContent: c.nome }),
-            lider && c.soLider ? criar("span", { className: "chip", textContent: "Só o líder", style: "margin-left:8px" }) : null,
           ),
           lider ? criar("button", { type: "button", className: "link-suave", textContent: "Editar", onclick: () => abrirSenha(c) }) : null,
         ),
@@ -1341,7 +1339,6 @@
     $("senhaSenha").type = "password";
     $("senhaMostrar").checked = false;
     $("senhaObs").value = c ? c.obs : "";
-    $("senhaQuem").value = c && c.soLider ? "lider" : "equipe";
     $("senhaRemover").hidden = !c;
     $("senhaErro").textContent = "";
     $("janelaSenha").showModal();
@@ -1364,7 +1361,7 @@
       await mexerNoCofre("salvarSenha", {
         id: senhaAberta ? senhaAberta.id : "",
         nome: $("senhaNome").value, usuario: $("senhaUsuario").value, senha: $("senhaSenha").value,
-        obs: $("senhaObs").value, soLider: $("senhaQuem").value === "lider",
+        obs: $("senhaObs").value,
       }, "Acesso salvo no cofre.");
     } catch (e) {
       $("senhaErro").textContent = e.message;
