@@ -36,9 +36,16 @@ function instalar() {
   Logger.log("Pronto! Planilha de dados: " + planilha.getUrl());
   const pasta = DriveApp.getFolderById(PASTA_BANNERS);
   Logger.log("Pasta de banners: " + pasta.getName());
-  // teste de envio: cria um arquivinho na pasta e joga na lixeira (garante a permissão de criar arquivos)
-  pasta.createFile("teste do portal.txt", "pode apagar").setTrashed(true);
+  // teste de envio: cria um arquivinho na pasta, tenta liberar o link e joga na lixeira
+  const teste = pasta.createFile("teste do portal.txt", "pode apagar");
   Logger.log("Envio de banners: OK");
+  try {
+    liberarLink(teste);
+    Logger.log("Liberar link: OK");
+  } catch (e) {
+    Logger.log("Liberar link: o Google não deixou (" + e.message + "). Sem problema se a pasta de banners já estiver como \"Qualquer pessoa com o link\".");
+  }
+  teste.setTrashed(true);
 }
 
 function doPost(e) {
@@ -218,9 +225,21 @@ function enviarBanner(pedido) {
   if (!bytes.length) throw falha("A imagem chegou vazia. Tente de novo.");
   if (bytes.length > 12 * 1024 * 1024) throw falha("Imagem grande demais (máximo 12 MB).");
   const nome = `${pedido.data || "sem data"} - ${String(pedido.evento).trim()}`.replace(/[\/:*?"<>|]/g, "-") + "." + TIPOS_DE_IMAGEM[tipo];
-  const arquivo = DriveApp.getFolderById(PASTA_BANNERS).createFile(Utilities.newBlob(bytes, tipo, nome));
-  arquivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  let arquivo;
+  try {
+    arquivo = DriveApp.getFolderById(PASTA_BANNERS).createFile(Utilities.newBlob(bytes, tipo, nome));
+  } catch (e) {
+    throw falha("Não consegui salvar a imagem na pasta de banners do Drive (" + e.message + "). Avise o líder.");
+  }
+  // o arquivo herda o compartilhamento da pasta; se o Google não deixar mudar aqui, segue assim mesmo
+  try { liberarLink(arquivo); } catch (e) { console.warn("Liberar link: " + e.message); }
   celula.setValue(`https://drive.google.com/file/d/${arquivo.getId()}/view`);
+}
+
+// "Qualquer pessoa com o link" pode ver (para a imagem aparecer no site). Não mexe se já estiver assim.
+function liberarLink(arquivo) {
+  if (arquivo.getSharingAccess() === DriveApp.Access.ANYONE_WITH_LINK) return;
+  arquivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 }
 
 // ---------------------------------------------------------------------------
