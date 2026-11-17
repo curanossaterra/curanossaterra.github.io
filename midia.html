@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-pagina="interna">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Portal da Mídia | Portal da Cura</title>
+<!-- página interna: fora do Google e sem link no site -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0f1a2b">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="apple-touch-icon" href="img/icone-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fundo: #0f1a2b;
+    --fundo-2: #1b2f4d;
+    --cartao: #16253b;
+    --botao: #f2ead8;
+    --botao-texto: #0f1a2b;
+    --texto: #f2ead8;
+    --texto-suave: #aebbd0;
+    --linha: rgba(201,164,99,.25);
+    --destaque: #c9a463;
+    --erro: #ff8a80;
+    --ok: #8fd19e;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: radial-gradient(120% 60% at 50% 0%, var(--fundo-2), var(--fundo) 70%);
+    background-color: var(--fundo);
+    color: var(--texto);
+    padding: calc(env(safe-area-inset-top, 0px) + 24px) 16px calc(env(safe-area-inset-bottom, 0px) + 40px);
+    min-height: 100vh;
+  }
+  main { max-width: 960px; margin: 0 auto; }
+  button, input, select { font-family: inherit; }
+  button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--destaque); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+
+  header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  header img { width: 48px; height: 48px; border-radius: 50%; background: #fff; }
+  header h1 { font-size: 22px; font-weight: 800; line-height: 1.2; }
+  header p { color: var(--texto-suave); font-size: 14px; }
+  header .acoes { margin-left: auto; display: flex; gap: 8px; }
+
+  /* abas entre o painel de visitas e o Portal da Mídia */
+  .abas { display: flex; gap: 4px; margin-top: 20px; border-bottom: 1px solid var(--linha); }
+  .abas a {
+    padding: 10px 14px; color: var(--texto-suave); text-decoration: none; font-size: 15px; font-weight: 600;
+    border-bottom: 3px solid transparent; margin-bottom: -1px;
+  }
+  .abas a[aria-current="page"] { color: var(--texto); border-bottom-color: var(--destaque); }
+
+  .link-suave {
+    background: none; border: 1px solid var(--linha); color: var(--texto-suave);
+    border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none;
+  }
+  .link-suave:hover { color: var(--texto); }
+  .principal {
+    padding: 12px 20px; border: 0; border-radius: 999px; cursor: pointer;
+    background: var(--destaque); color: var(--botao-texto); font-size: 15px; font-weight: 600;
+  }
+  .principal:disabled { opacity: .6; cursor: wait; }
+
+  .cartao { background: var(--cartao); border: 1px solid var(--linha); border-radius: 16px; padding: 18px; margin-top: 14px; }
+  .cartao h2 { font-size: 17px; font-weight: 600; }
+  .sub { color: var(--texto-suave); font-size: 13px; margin-top: 2px; }
+  .erro { color: var(--erro); font-size: 14px; margin-top: 12px; }
+  .vazio { color: var(--texto-suave); font-size: 14px; margin-top: 12px; }
+
+  /* tela de entrada */
+  .entrar { max-width: 520px; margin: 40px auto 0; text-align: center; }
+  .entrar .cartao { padding: 28px 20px; }
+  .entrar p { color: var(--texto-suave); font-size: 15px; line-height: 1.5; margin-top: 8px; }
+  #botaoGoogle { display: flex; justify-content: center; margin-top: 20px; min-height: 44px; }
+
+  /* barra de cima: quem está usando */
+  .ola { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  .ola strong { font-size: 18px; }
+  .ola .acoes { margin-left: auto; display: flex; gap: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { border: 1px solid var(--linha); border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 600; color: var(--destaque); }
+
+  /* seções do portal */
+  .secoes { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 4px; }
+  .secoes button {
+    border: 1px solid var(--linha); background: transparent; color: var(--texto);
+    border-radius: 999px; padding: 10px 16px; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  .secoes button[aria-selected="true"] { background: var(--destaque); border-color: var(--destaque); color: var(--botao-texto); }
+  .secoes .contador {
+    display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; margin-left: 4px;
+    border-radius: 999px; background: var(--erro); color: #3b0d09; font-size: 12px; font-weight: 800;
+  }
+  .aviso { min-height: 20px; margin-top: 10px; font-size: 14px; color: var(--texto-suave); }
+  .aviso.erro { color: var(--erro); }
+  .conteudo { transition: opacity .2s; }
+  .conteudo.carregando { opacity: .45; pointer-events: none; }
+
+  .lista { list-style: none; display: grid; gap: 10px; margin-top: 12px; }
+  .mes {
+    display: flex; align-items: center; gap: 12px; margin-top: 14px;
+    color: var(--destaque); font-size: 16px; font-weight: 800;
+  }
+  .mes::after { content: ""; flex: 1; height: 1px; background: var(--linha); }
+  .item { background: var(--cartao); border: 1px solid var(--linha); border-radius: 16px; padding: 14px 16px; }
+  .item.pendente { border-color: rgba(255,138,128,.55); }
+  .item .topo { display: flex; align-items: flex-start; gap: 12px; }
+  .item .topo > div { flex: 1; min-width: 0; }
+  .dia { display: block; color: var(--destaque); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+  .item strong { display: block; font-size: 16px; font-weight: 600; margin-top: 2px; }
+  .item small { display: block; color: var(--texto-suave); font-size: 13px; margin-top: 2px; }
+
+  /* escala: função -> pessoa */
+  .pessoas { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 14px; margin-top: 12px; }
+  .pessoas dt { color: var(--texto-suave); font-size: 12px; }
+  .pessoas dd { font-size: 15px; font-weight: 600; }
+  .pessoas dd.falta { color: var(--texto-suave); font-weight: 400; }
+  .pessoas dd.eu, .minhas .eu { color: var(--destaque); }
+  .descanso { margin-top: 10px; font-size: 13px; color: var(--texto-suave); }
+  .descanso b { color: var(--texto); font-weight: 600; }
+
+  /* eventos: banner */
+  .banner-mini { flex: none; width: 64px; height: 64px; border-radius: 10px; object-fit: cover; background: var(--fundo); }
+  .selo { display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 600; }
+  .selo.ok { color: var(--ok); }
+  .selo.falta { color: var(--erro); }
+  .form-banner { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .campo, .form-banner input {
+    flex: 1; min-width: 200px; width: 100%; padding: 12px 14px; border-radius: 12px;
+    border: 1px solid var(--linha); background: var(--fundo); color: var(--texto); font-size: 15px;
+  }
+  .dica-campo { width: 100%; font-size: 13px; color: var(--texto-suave); }
+  .dica-campo.erro { color: var(--erro); margin-top: 0; }
+
+  /* janelas de edição */
+  dialog {
+    margin: auto; width: min(94vw, 480px); max-height: 90vh; overflow: auto; padding: 22px 20px;
+    border: 1px solid var(--linha); border-radius: 18px; background: var(--fundo-2); color: var(--texto);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.75); }
+  dialog h2 { font-size: 19px; font-weight: 600; }
+  dialog label { display: block; margin-top: 14px; font-size: 13px; font-weight: 600; color: var(--texto-suave); }
+  dialog label .campo { margin-top: 6px; }
+  .marcar { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 400; color: var(--texto); }
+  .marcar input { width: 18px; height: 18px; accent-color: var(--destaque); }
+  .botoes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin-top: 20px; }
+  .botoes .remover { margin-right: auto; color: var(--erro); }
+
+  @media (max-width: 720px) {
+    header .acoes, .ola .acoes { margin-left: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { .conteudo { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="img/igreja.webp" alt="">
+    <div>
+      <h1>Portal da Mídia</h1>
+      <p>Escala, eventos e banners da equipe</p>
+    </div>
+  </header>
+  <nav class="abas" aria-label="Painéis">
+    <a href="painel.html">Visitas do site</a>
+    <a href="midia.html" aria-current="page">Portal da Mídia</a>
+  </nav>
+
+  <section class="entrar" id="telaEntrar">
+    <div class="cartao">
+      <h2>Entre com sua conta Google</h2>
+      <p>Só a equipe da Mídia consegue entrar. Se o seu e-mail ainda não estiver cadastrado, peça para a coordenação.</p>
+      <div id="botaoGoogle"></div>
+      <p class="erro" id="erroEntrar" role="alert"></p>
+      <p class="erro" id="naoConfigurado" hidden>O portal ainda não foi ligado ao Google. Siga o passo a passo em apps-script/LEIA-ME.md.</p>
+    </div>
+  </section>
+
+  <section id="telaPortal" hidden>
+    <div class="ola">
+      <div>
+        <strong id="olaNome"></strong>
+        <div class="chips" id="olaFuncoes"></div>
+      </div>
+      <div class="acoes">
+        <button class="link-suave" id="atualizar" type="button">Atualizar</button>
+        <button class="link-suave" id="sair" type="button">Sair</button>
+      </div>
+    </div>
+
+    <div class="secoes" role="tablist" aria-label="Seções">
+      <button type="button" role="tab" data-secao="minhas" aria-selected="true">Minhas funções</button>
+      <button type="button" role="tab" data-secao="escala" aria-selected="false">Escala</button>
+      <button type="button" role="tab" data-secao="eventos" aria-selected="false">Eventos<span class="contador" id="contaPendencias" hidden></span></button>
+      <button type="button" role="tab" data-secao="equipe" aria-selected="false" id="abaEquipe" hidden>Equipe</button>
+    </div>
+    <p class="aviso" id="aviso" role="status"></p>
+
+    <div class="conteudo" id="conteudo">
+      <section data-painel="minhas">
+        <div class="cartao" id="cartaoPendencias" hidden>
+          <h2 id="tituloPendencias"></h2>
+          <p class="sub">A Ariane lançou na agenda e ainda falta o banner. Cole o link do Drive para aparecer no site.</p>
+          <button class="principal" type="button" id="irEventos" style="margin-top:12px">Ver eventos</button>
+        </div>
+        <div class="cartao minhas">
+          <h2>Suas próximas escalas</h2>
+          <ul class="lista" id="minhasEscalas"></ul>
+        </div>
+      </section>
+
+      <section data-painel="escala" hidden>
+        <ul class="lista" id="listaEscala"></ul>
+        <button class="link-suave" type="button" id="maisSemanas" style="margin-top:16px">Mostrar mais semanas</button>
+      </section>
+
+      <section data-painel="eventos" hidden>
+        <ul class="lista" id="listaEventos"></ul>
+      </section>
+
+      <section data-painel="equipe" hidden>
+        <div class="cartao">
+          <h2>Equipe da Mídia</h2>
+          <p class="sub">Quem tem e-mail cadastrado consegue entrar no portal. Coordenação monta a escala e cuida da equipe.</p>
+          <button class="principal" type="button" id="novoMembro" style="margin-top:12px">Adicionar pessoa</button>
+        </div>
+        <ul class="lista" id="listaEquipe"></ul>
+      </section>
+    </div>
+  </section>
+
+  <!-- editar a escala de um culto/evento (coordenação) -->
+  <dialog id="janelaEscala">
+    <form id="formEscala">
+      <h2 id="escalaTitulo"></h2>
+      <p class="sub" id="escalaQuando"></p>
+      <div id="escalaCampos"></div>
+      <label>Descanso
+        <input class="campo" id="escalaDescanso" placeholder="Ex.: Ana (na hora da palavra)">
+      </label>
+      <p class="erro" id="escalaErro" role="alert"></p>
+      <div class="botoes">
+        <button class="link-suave" type="button" data-fechar>Cancelar</button>
+        <button class="principal" type="submit">Salvar escala</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- adicionar/editar pessoa da equipe (coordenação) -->
+  <dialog id="janelaMembro">
+    <form id="formMembro">
+      <h2 id="membroTitulo"></h2>
+      <label>Nome (como aparece na escala)
+        <input class="campo" id="membroNome" required>
+      </label>
+      <label>E-mail do Google (para entrar no portal)
+        <input class="campo" id="membroEmail" type="email" placeholder="nome@gmail.com">
+      </label>
+      <label>Funções</label>
+      <div id="membroFuncoes"></div>
+      <label class="marcar"><input type="checkbox" id="membroCoordenador"> Coordenação (monta a escala e cuida da equipe)</label>
+      <p class="erro" id="membroErro" role="alert"></p>
+      <div class="botoes">
+        <button class="link-suave remover" type="button" id="membroRemover">Remover</button>
+        <button class="link-suave" type="button" data-fechar>Cancelar</button>
+        <button class="principal" type="submit">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+</main>
+
+<script src="comum.js"></script>
+<script>
+  // LIGAÇÃO COM O GOOGLE (passo a passo em apps-script/LEIA-ME.md)
+  const API = "";       // endereço do Apps Script implantado (termina em /exec)
+  const CLIENT_ID = ""; // código do cliente OAuth (termina em .apps.googleusercontent.com)
+
+  const CHAVE_LOGIN = "midia-login";
+  const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+  const $ = (id) => document.getElementById(id);
+
+  let token = null;
+  let dados = null;   // resposta do Apps Script: { eu, funcoes, equipe, escala, eventos }
+  let semanas = 6;    // quantas semanas a escala mostra
+
+  // ---------------------------------------------------------------------------
+  // AJUDANTES
+  function criar(tag, props = {}, ...filhos) {
+    const n = document.createElement(tag);
+    Object.assign(n, props);
+    filhos.flat().forEach((f) => { if (f != null && f !== false) n.append(f); });
+    return n;
+  }
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const dataDe = (texto) => { const [a, m, d] = texto.split("-").map(Number); return new Date(a, m - 1, d); };
+  function rotuloDia(texto, hora) {
+    const d = dataDe(texto);
+    const dia = `${DIAS_CURTOS[d.getDay()]}, ${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return hora ? `${dia} · ${formatarHora(hora)}` : dia;
+  }
+  function formatarHora(texto) {
+    const m = texto.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    return m ? `${Number(m[1])}h${m[2] === "00" ? "" : m[2]}` : texto;
+  }
+  const mesmoNome = (a, b) => normalizar(a || "") === normalizar(b || "") && !!a;
+  function imagemDoDrive(texto) {
+    const m = texto.match(/drive\.google\.com\/.*(?:\/d\/|[?&]id=)([\w-]{20,})/);
+    return m ? `https://lh3.googleusercontent.com/d/${m[1]}=w600` : "";
+  }
+  // separa a lista em meses, como na agenda do site
+  function porMes(itens, desenharItem) {
+    const lista = [];
+    let mesAtual = "";
+    const anoAtual = new Date().getFullYear();
+    itens.forEach((item) => {
+      const d = dataDe(item.data);
+      const mes = d.getFullYear() === anoAtual ? MESES[d.getMonth()] : `${MESES[d.getMonth()]} de ${d.getFullYear()}`;
+      if (mes !== mesAtual) { lista.push(criar("li", { className: "mes", textContent: mes })); mesAtual = mes; }
+      lista.push(desenharItem(item));
+    });
+    return lista;
+  }
+  function avisar(texto, erro = false) {
+    $("aviso").textContent = texto;
+    $("aviso").classList.toggle("erro", erro);
+  }
+
+  // ---------------------------------------------------------------------------
+  // ENTRAR COM O GOOGLE
+  function validade(t) {
+    try { return JSON.parse(atob(t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).exp * 1000; } catch { return 0; }
+  }
+  function loginSalvo() {
+    try {
+      const t = localStorage.getItem(CHAVE_LOGIN);
+      return t && validade(t) - Date.now() > 60000 ? t : null;
+    } catch { return null; }
+  }
+
+  // chamado quando o script do Google termina de carregar
+  function iniciarGoogle() {
+    if (!API || !CLIENT_ID) return;
+    google.accounts.id.initialize({ client_id: CLIENT_ID, callback: (r) => entrar(r.credential), auto_select: true });
+    google.accounts.id.renderButton($("botaoGoogle"), { theme: "filled_black", size: "large", shape: "pill", text: "signin_with", locale: "pt-BR" });
+    if (!token) google.accounts.id.prompt();
+  }
+
+  async function entrar(credencial) {
+    token = credencial;
+    try { localStorage.setItem(CHAVE_LOGIN, credencial); } catch {}
+    $("erroEntrar").textContent = "Entrando…";
+    try {
+      await api("dados");
+      $("erroEntrar").textContent = "";
+      $("telaEntrar").hidden = true;
+      $("telaPortal").hidden = false;
+    } catch (e) {
+      if (e.codigo !== "entrar") sair(e.message);
+    }
+  }
+
+  function sair(mensagem = "") {
+    token = null;
+    dados = null;
+    try { localStorage.removeItem(CHAVE_LOGIN); } catch {}
+    if (window.google && google.accounts) google.accounts.id.disableAutoSelect();
+    $("telaPortal").hidden = true;
+    $("telaEntrar").hidden = false;
+    $("erroEntrar").textContent = mensagem;
+  }
+
+  // Toda conversa com o Apps Script passa por aqui. A resposta sempre traz os dados atualizados.
+  // (corpo em texto simples: assim o navegador não faz a consulta prévia de CORS, que o Apps Script não aceita)
+  async function api(acao, extra = {}) {
+    $("conteudo").classList.add("carregando");
+    try {
+      let resposta;
+      try {
+        const r = await fetch(API, { method: "POST", body: JSON.stringify({ acao, token, ...extra }) });
+        resposta = await r.json();
+      } catch {
+        throw new Error("Não consegui falar com o Google. Confira a internet e tente de novo.");
+      }
+      if (resposta.erro) {
+        const erro = new Error(resposta.erro);
+        erro.codigo = resposta.codigo;
+        if (erro.codigo === "entrar") sair(resposta.erro);
+        throw erro;
+      }
+      dados = resposta;
+      desenhar();
+      return resposta;
+    } finally {
+      $("conteudo").classList.remove("carregando");
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // OCASIÕES DA ESCALA: cultos fixos (CULTOS no comum.js) + eventos da agenda + o que já foi escalado
+  function ocasioes() {
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const limite = new Date(hoje); limite.setDate(limite.getDate() + semanas * 7);
+    const inicio = iso(hoje), fim = iso(limite);
+    const porChave = new Map();
+    const juntar = (o) => {
+      const chave = `${o.data}|${o.nome}`;
+      if (o.data >= inicio && !porChave.has(chave)) porChave.set(chave, o);
+    };
+    for (const d = new Date(hoje); d < limite; d.setDate(d.getDate() + 1)) {
+      CULTOS.forEach((c) => {
+        if (c.dia === d.getDay() && (!c.primeiroDomingo || d.getDate() <= 7)) {
+          juntar({ data: iso(d), hora: `${String(c.hora).padStart(2, "0")}:${String(c.minuto).padStart(2, "0")}`, nome: c.nome });
+        }
+      });
+    }
+    dados.eventos.forEach((e) => { if (e.data && e.data < fim) juntar({ data: e.data, hora: e.hora, nome: arrumarTexto(e.evento) }); });
+    dados.escala.forEach((l) => juntar({ data: l.data, hora: "", nome: l.nome }));
+    const escalaPor = new Map(dados.escala.map((l) => [`${l.data}|${l.nome}`, l]));
+    return [...porChave.values()]
+      .map((o) => ({ ...o, escala: escalaPor.get(`${o.data}|${o.nome}`) }))
+      .sort((a, b) => (a.data + a.hora).localeCompare(b.data + b.hora));
+  }
+
+  // ---------------------------------------------------------------------------
+  // DESENHAR AS SEÇÕES
+  function desenhar() {
+    const eu = dados.eu;
+    $("olaNome").textContent = `Olá, ${eu.nome}`;
+    $("olaFuncoes").replaceChildren(
+      ...eu.funcoes.map((f) => criar("span", { className: "chip", textContent: f })),
+      eu.coordenador ? criar("span", { className: "chip", textContent: "Coordenação" }) : null,
+    );
+    $("abaEquipe").hidden = !eu.coordenador;
+
+    const lista = ocasioes();
+    desenharMinhas(lista);
+    desenharEscala(lista);
+    desenharEventos();
+    if (eu.coordenador) desenharEquipe();
+  }
+
+  function desenharMinhas(lista) {
+    const eu = dados.eu;
+    const minhas = lista.filter((o) => o.escala && (
+      Object.values(o.escala.pessoas).some((p) => mesmoNome(p, eu.nome)) || normalizar(o.escala.descanso).includes(normalizar(eu.nome))
+    ));
+    $("minhasEscalas").replaceChildren(...(minhas.length ? porMes(minhas, (o) => {
+      const funcoes = Object.entries(o.escala.pessoas).filter(([, p]) => mesmoNome(p, eu.nome)).map(([f]) => f);
+      return criar("li", { className: "item" },
+        criar("span", { className: "dia", textContent: rotuloDia(o.data, o.hora) }),
+        criar("strong", { textContent: o.nome }),
+        funcoes.length ? criar("small", { className: "eu", textContent: funcoes.join(" · ") }) : null,
+        o.escala.descanso ? criar("p", { className: "descanso" }, criar("b", { textContent: "Descanso: " }), o.escala.descanso) : null,
+      );
+    }) : [criar("li", { className: "vazio", textContent: `Você ainda não está escalado(a) nas próximas ${semanas} semanas.` })]));
+
+    const pendentes = dados.eventos.filter((e) => !e.banner).length;
+    $("cartaoPendencias").hidden = !pendentes;
+    $("tituloPendencias").textContent = pendentes === 1 ? "1 evento sem banner" : `${pendentes} eventos sem banner`;
+    $("contaPendencias").hidden = !pendentes;
+    $("contaPendencias").textContent = pendentes;
+  }
+
+  function desenharEscala(lista) {
+    const eu = dados.eu;
+    $("listaEscala").replaceChildren(...porMes(lista, (o) => {
+      const pessoas = o.escala ? o.escala.pessoas : {};
+      const editar = eu.coordenador
+        ? criar("button", { type: "button", className: "link-suave", textContent: o.escala ? "Editar" : "Montar", onclick: () => abrirEscala(o) })
+        : null;
+      return criar("li", { className: "item" },
+        criar("div", { className: "topo" },
+          criar("div", {},
+            criar("span", { className: "dia", textContent: rotuloDia(o.data, o.hora) }),
+            criar("strong", { textContent: o.nome }),
+          ),
+          editar,
+        ),
+        criar("dl", { className: "pessoas" }, dados.funcoes.map((f) => criar("div", {},
+          criar("dt", { textContent: f }),
+          criar("dd", {
+            textContent: pessoas[f] || "—",
+            className: !pessoas[f] ? "falta" : mesmoNome(pessoas[f], eu.nome) ? "eu" : "",
+          }),
+        ))),
+        o.escala && o.escala.descanso ? criar("p", { className: "descanso" }, criar("b", { textContent: "Descanso: " }), o.escala.descanso) : null,
+      );
+    }));
+  }
+
+  function desenharEventos() {
+    // sem banner primeiro; depois por data
+    const eventos = [...dados.eventos].sort((a, b) => (!!a.banner - !!b.banner) || (a.data || "9").localeCompare(b.data || "9"));
+    if (!eventos.length) {
+      $("listaEventos").replaceChildren(criar("li", { className: "vazio", textContent: "Nenhum evento futuro na agenda." }));
+      return;
+    }
+    $("listaEventos").replaceChildren(...eventos.map((e) => {
+      const miniatura = e.banner && imagemDoDrive(e.banner);
+      const form = formBanner(e);
+      form.hidden = !!e.banner;
+      return criar("li", { className: e.banner ? "item" : "item pendente" },
+        criar("div", { className: "topo" },
+          miniatura ? criar("img", { className: "banner-mini", src: miniatura, alt: "", loading: "lazy" }) : null,
+          criar("div", {},
+            criar("span", { className: "dia", textContent: e.data ? rotuloDia(e.data, e.hora) : "Sem data" }),
+            criar("strong", { textContent: arrumarTexto(e.evento) }),
+            e.ministerio ? criar("small", { textContent: e.ministerio }) : null,
+            criar("span", { className: e.banner ? "selo ok" : "selo falta", textContent: e.banner ? "✓ Banner no site" : "Falta o banner" }),
+          ),
+          e.banner ? criar("button", { type: "button", className: "link-suave", textContent: "Trocar", onclick: () => { form.hidden = !form.hidden; } }) : null,
+        ),
+        form,
+      );
+    }));
+  }
+
+  function formBanner(e) {
+    const campo = criar("input", { type: "url", placeholder: "Cole aqui o link do banner no Google Drive", value: e.banner });
+    campo.setAttribute("aria-label", `Link do banner de ${e.evento}`);
+    const botao = criar("button", { type: "submit", className: "principal", textContent: "Salvar" });
+    const dica = criar("p", { className: "dica-campo", textContent: 'No Drive: Compartilhar → "Qualquer pessoa com o link" → Copiar link.' });
+    const form = criar("form", { className: "form-banner" }, campo, botao, dica);
+    form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const link = campo.value.trim();
+      dica.classList.remove("erro");
+      if (link) {
+        const imagem = imagemDoDrive(link);
+        if (!imagem) { dica.classList.add("erro"); dica.textContent = "Esse não parece um link de arquivo do Google Drive."; return; }
+        botao.disabled = true;
+        dica.textContent = "Conferindo a imagem…";
+        // confere se o site vai conseguir mostrar a imagem antes de gravar na planilha
+        const abre = await new Promise((ok) => { const i = new Image(); i.onload = () => ok(true); i.onerror = () => ok(false); i.src = imagem; });
+        if (!abre) {
+          botao.disabled = false;
+          dica.classList.add("erro");
+          dica.textContent = 'Não consegui abrir a imagem. No Drive, em Compartilhar, deixe "Qualquer pessoa com o link" e confira se é uma imagem (JPG ou PNG).';
+          return;
+        }
+      }
+      botao.disabled = true;
+      try {
+        await api("salvarBanner", { linha: e.linha, evento: e.evento, link });
+        avisar(link ? `Banner de "${arrumarTexto(e.evento)}" salvo. Já aparece na agenda do site.` : "Banner removido.");
+      } catch (erro) {
+        botao.disabled = false;
+        dica.classList.add("erro");
+        dica.textContent = erro.message;
+      }
+    });
+    return form;
+  }
+
+  function desenharEquipe() {
+    $("listaEquipe").replaceChildren(...dados.equipe.map((m) => criar("li", { className: "item" },
+      criar("div", { className: "topo" },
+        criar("div", {},
+          criar("strong", { textContent: m.nome }),
+          criar("small", { textContent: m.email || "Sem e-mail: aparece na escala, mas não entra no portal" }),
+          criar("div", { className: "chips", style: "margin-top:8px" },
+            m.funcoes.map((f) => criar("span", { className: "chip", textContent: f })),
+            m.coordenador ? criar("span", { className: "chip", textContent: "Coordenação" }) : null,
+          ),
+        ),
+        criar("button", { type: "button", className: "link-suave", textContent: "Editar", onclick: () => abrirMembro(m) }),
+      ),
+    )));
+  }
+
+  // ---------------------------------------------------------------------------
+  // JANELA: ESCALA
+  let escalaAberta = null;
+  function abrirEscala(o) {
+    escalaAberta = o;
+    const pessoas = o.escala ? o.escala.pessoas : {};
+    $("escalaTitulo").textContent = o.nome;
+    $("escalaQuando").textContent = rotuloDia(o.data, o.hora);
+    $("escalaCampos").replaceChildren(...dados.funcoes.map((f) => {
+      // quem tem a função aparece primeiro; os outros ficam embaixo, para cobrir falta
+      const daFuncao = dados.equipe.filter((m) => m.funcoes.includes(f)).map((m) => m.nome);
+      const outros = dados.equipe.map((m) => m.nome).filter((n) => !daFuncao.includes(n));
+      const atual = pessoas[f] || "";
+      const opcao = (n) => criar("option", { value: n, textContent: n, selected: mesmoNome(n, atual) });
+      const select = criar("select", { className: "campo", name: f },
+        criar("option", { value: "", textContent: "— ninguém —" }),
+        daFuncao.map(opcao),
+        outros.length ? criar("optgroup", { label: "Outras pessoas" }, outros.map(opcao)) : null,
+        // nome que está na escala mas saiu da equipe
+        atual && !dados.equipe.some((m) => mesmoNome(m.nome, atual)) ? criar("option", { value: atual, textContent: atual, selected: true }) : null,
+      );
+      return criar("label", {}, f, select);
+    }));
+    $("escalaDescanso").value = o.escala ? o.escala.descanso : "";
+    $("escalaErro").textContent = "";
+    $("janelaEscala").showModal();
+  }
+
+  $("formEscala").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const pessoas = {};
+    $("escalaCampos").querySelectorAll("select").forEach((s) => { if (s.value) pessoas[s.name] = s.value; });
+    const botao = ev.submitter;
+    botao.disabled = true;
+    try {
+      await api("salvarEscala", { data: escalaAberta.data, nome: escalaAberta.nome, pessoas, descanso: $("escalaDescanso").value });
+      $("janelaEscala").close();
+      avisar(`Escala de ${escalaAberta.nome} (${rotuloDia(escalaAberta.data)}) salva.`);
+    } catch (e) {
+      $("escalaErro").textContent = e.message;
+    } finally {
+      botao.disabled = false;
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // JANELA: PESSOA DA EQUIPE
+  let membroAberto = null;
+  function abrirMembro(m) {
+    membroAberto = m;
+    $("membroTitulo").textContent = m ? `Editar ${m.nome}` : "Adicionar pessoa";
+    $("membroNome").value = m ? m.nome : "";
+    $("membroEmail").value = m ? m.email : "";
+    $("membroCoordenador").checked = !!(m && m.coordenador);
+    $("membroFuncoes").replaceChildren(...dados.funcoes.map((f) => criar("label", { className: "marcar" },
+      criar("input", { type: "checkbox", value: f, checked: !!(m && m.funcoes.includes(f)) }), f,
+    )));
+    $("membroRemover").hidden = !m;
+    $("membroErro").textContent = "";
+    $("janelaMembro").showModal();
+  }
+  $("novoMembro").addEventListener("click", () => abrirMembro(null));
+
+  $("formMembro").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const botao = ev.submitter;
+    botao.disabled = true;
+    try {
+      await api("salvarMembro", {
+        linha: membroAberto ? membroAberto.linha : 0,
+        nome: $("membroNome").value,
+        email: $("membroEmail").value,
+        funcoes: [...$("membroFuncoes").querySelectorAll("input:checked")].map((c) => c.value),
+        coordenador: $("membroCoordenador").checked,
+      });
+      $("janelaMembro").close();
+      avisar("Equipe atualizada.");
+    } catch (e) {
+      $("membroErro").textContent = e.message;
+    } finally {
+      botao.disabled = false;
+    }
+  });
+
+  $("membroRemover").addEventListener("click", async () => {
+    if (!confirm(`Remover ${membroAberto.nome} da equipe? As escalas antigas continuam com o nome.`)) return;
+    try {
+      await api("removerMembro", { linha: membroAberto.linha, nome: membroAberto.nome });
+      $("janelaMembro").close();
+      avisar("Pessoa removida da equipe.");
+    } catch (e) {
+      $("membroErro").textContent = e.message;
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // NAVEGAÇÃO E BOTÕES
+  function mostrarSecao(nome) {
+    document.querySelectorAll(".secoes button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.secao === nome)));
+    document.querySelectorAll("[data-painel]").forEach((p) => { p.hidden = p.dataset.painel !== nome; });
+    avisar("");
+  }
+  document.querySelectorAll(".secoes button").forEach((b) => b.addEventListener("click", () => mostrarSecao(b.dataset.secao)));
+  $("irEventos").addEventListener("click", () => mostrarSecao("eventos"));
+  $("maisSemanas").addEventListener("click", () => { semanas += 6; desenhar(); });
+  $("atualizar").addEventListener("click", () => api("dados").then(() => avisar("Atualizado.")).catch((e) => avisar(e.message, true)));
+  $("sair").addEventListener("click", () => sair());
+  document.querySelectorAll("[data-fechar]").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
+  document.querySelectorAll("dialog").forEach((d) => d.addEventListener("click", (e) => { if (e.target === d) d.close(); }));
+
+  // INÍCIO
+  if (!API || !CLIENT_ID) {
+    $("naoConfigurado").hidden = false;
+  } else {
+    const salvo = loginSalvo();
+    if (salvo) entrar(salvo);
+  }
+</script>
+<script src="https://accounts.google.com/gsi/client" async onload="iniciarGoogle()"></script>
+</body>
+</html>

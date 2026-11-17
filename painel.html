@@ -45,6 +45,14 @@
   header p { color: var(--texto-suave); font-size: 14px; }
   header .acoes { margin-left: auto; display: flex; gap: 8px; }
 
+  /* abas entre o painel de visitas e o Portal da Mídia */
+  .abas { display: flex; gap: 4px; margin-top: 20px; border-bottom: 1px solid var(--linha); }
+  .abas a {
+    padding: 10px 14px; color: var(--texto-suave); text-decoration: none; font-size: 15px; font-weight: 600;
+    border-bottom: 3px solid transparent; margin-bottom: -1px;
+  }
+  .abas a[aria-current="page"] { color: var(--texto); border-bottom-color: var(--destaque); }
+
   .link-suave {
     background: none; border: 1px solid var(--linha); color: var(--texto-suave);
     border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none;
@@ -139,6 +147,10 @@
       <button class="link-suave" id="sair" type="button">Sair deste aparelho</button>
     </div>
   </header>
+  <nav class="abas" aria-label="Painéis">
+    <a href="painel.html" aria-current="page">Visitas do site</a>
+    <a href="midia.html">Portal da Mídia</a>
+  </nav>
 
   <!-- 1ª vez: pede a chave de acesso (fica guardada só neste aparelho) -->
   <section class="chave" id="telaChave" hidden>

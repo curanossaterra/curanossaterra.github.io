@@ -1,5 +1,8 @@
 // Código usado pelas duas páginas (index.html e agenda.html).
 // Inclua com <script src="comum.js"></script> no fim do <body>, antes do script da página.
+// Páginas internas (<html data-pagina="interna">, ex.: midia.html) usam só os dados e as funções daqui:
+// sem barra "ao vivo", sem botão de tema e sem entrar na contagem de visitas.
+const PAGINA_INTERNA = document.documentElement.dataset.pagina === "interna";
 
 // CULTOS FIXOS: único lugar para mudar os horários (aparecem na agenda e ligam a barra "ao vivo").
 // dia: 0 = domingo … 6 = sábado. primeiroDomingo: só no 1º domingo do mês.
@@ -115,6 +118,7 @@ function horarioDoCulto(c) {
 // Duas fontes: os CULTOS com aoVivo + os eventos da planilha com a coluna "Ao vivo" marcada.
 // Aparece 10 min antes do início e fica até 2h30 depois. Para testar: coloque ?aovivo=1 no endereço.
 (function barraAoVivo() {
+  if (PAGINA_INTERNA) return;
   const ANTES_MIN = 10, DEPOIS_MIN = 150;
   let eventosAoVivo = []; // [{ nome, inicio: Date }] vindos da planilha
 
@@ -228,6 +232,7 @@ function horarioDoCulto(c) {
 // TEMA CLARO / ESCURO: botão no canto de cima. O escolhido fica salvo no aparelho.
 // (Cada página também tem uma linha no <head> que aplica o tema salvo antes de desenhar, para não piscar.)
 (function tema() {
+  if (PAGINA_INTERNA) return;
   const CHAVE = "tema";
   const raiz = document.documentElement;
   const SOL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
@@ -288,6 +293,7 @@ function horarioDoCulto(c) {
 // Para contar o clique de um botão ou link, basta pôr nele: data-clique="Nome que aparece no painel".
 // Não conta quando o site é aberto no próprio computador (só no endereço publicado).
 (function contagem() {
+  if (PAGINA_INTERNA) return;
   if (location.hostname !== "curanossaterra.github.io") return;
   const script = document.createElement("script");
   script.async = true;
