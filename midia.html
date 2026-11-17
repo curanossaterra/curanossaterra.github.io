@@ -175,6 +175,32 @@
   .conteudo { transition: opacity .2s; }
   .conteudo.carregando { opacity: .45; pointer-events: none; }
 
+  /* PROCESSANDO: barrinha correndo no topo (qualquer conversa com o Google)
+     e um aviso no meio da tela para o que demora (entrar e enviar imagem) */
+  .barra-processo { position: fixed; z-index: 100; top: 0; left: 0; right: 0; height: 3px; overflow: hidden; background: rgba(255,255,255,.06); }
+  .barra-processo::before {
+    content: ""; position: absolute; top: 0; bottom: 0; width: 40%;
+    background: var(--destaque); border-radius: 3px; animation: correr 1.1s ease-in-out infinite;
+  }
+  @keyframes correr { from { left: -40%; } to { left: 100%; } }
+  .processando {
+    position: fixed; z-index: 90; inset: 0; display: grid; place-items: center; padding: 16px;
+    background: rgba(0,0,0,.6);
+  }
+  .processando > div {
+    display: flex; align-items: center; gap: 14px; max-width: 340px; padding: 20px 22px;
+    border: 1px solid var(--linha); border-radius: 18px; background: var(--fundo-2); color: var(--texto);
+    box-shadow: 0 10px 40px rgba(0,0,0,.4);
+  }
+  .processando strong { display: block; font-size: 16px; }
+  .processando small { display: block; margin-top: 2px; font-size: 13px; color: var(--texto-suave); }
+  .roda {
+    flex: none; width: 30px; height: 30px; border-radius: 50%;
+    border: 3px solid var(--linha); border-top-color: var(--destaque); animation: girar .8s linear infinite;
+  }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .roda { animation-duration: 2s; } .barra-processo::before { animation-duration: 2.5s; } }
+
   .lista { list-style: none; display: grid; gap: 10px; margin-top: 12px; }
   .mes {
     display: flex; align-items: center; gap: 12px; margin-top: 14px;
@@ -265,6 +291,10 @@
 </style>
 </head>
 <body>
+<div class="barra-processo" id="barraProcesso" hidden role="progressbar" aria-label="Processando"></div>
+<div class="processando" id="processando" hidden role="status" aria-live="polite">
+  <div><span class="roda" aria-hidden="true"></span><span><strong id="processandoTitulo">Processando…</strong><small id="processandoDetalhe"></small></span></div>
+</div>
 <main>
   <header>
     <img src="img/midia-logo.webp" alt="Mídia e Comunicação · Cura Nossa Terra">
@@ -604,7 +634,8 @@
   async function entrar(credencial) {
     token = credencial;
     try { localStorage.setItem(CHAVE_LOGIN, credencial); } catch {}
-    $("erroEntrar").textContent = "Entrando…";
+    $("erroEntrar").textContent = "";
+    processando("Entrando no portal…", "Conferindo sua conta e buscando a escala.");
     try {
       await api("dados");
       $("erroEntrar").textContent = "";
@@ -614,6 +645,8 @@
       document.body.classList.add("com-menu");
     } catch (e) {
       if (e.codigo !== "entrar") sair(e.message);
+    } finally {
+      fimProcessando();
     }
   }
 
@@ -633,15 +666,34 @@
     $("subtitulo").textContent = "Escala, eventos e banners da equipe";
   }
 
+  // Aviso grande no meio da tela, para o que demora (entrar, enviar imagem)
+  function processando(titulo, detalhe = "") {
+    $("processandoTitulo").textContent = titulo;
+    $("processandoDetalhe").textContent = detalhe;
+    $("processando").hidden = false;
+  }
+  function fimProcessando() { $("processando").hidden = true; }
+
+  // Barrinha no topo enquanto houver alguma conversa com o Google em andamento
+  let pedidosEmAndamento = 0;
+  function barra(soma) {
+    pedidosEmAndamento = Math.max(0, pedidosEmAndamento + soma);
+    $("barraProcesso").hidden = pedidosEmAndamento === 0;
+  }
+
   // Toda conversa com o Apps Script passa por aqui (a seção de visitas também usa).
   // (corpo em texto simples: assim o navegador não faz a consulta prévia de CORS, que o Apps Script não aceita)
   async function pedir(acao, extra = {}) {
     let resposta;
+    const mostrar = acao !== "ping"; // o "estou aqui" de fundo não acende a barrinha
+    if (mostrar) barra(+1);
     try {
       const r = await fetch(API, { method: "POST", body: JSON.stringify({ acao, token, ...extra }) });
       resposta = await r.json();
     } catch {
       throw new Error("Não consegui falar com o Google. Confira a internet e tente de novo.");
+    } finally {
+      if (mostrar) barra(-1);
     }
     if (resposta.erro) {
       const erro = new Error(resposta.erro);
@@ -995,18 +1047,21 @@
       situacao.textContent = "Preparando a imagem…";
       botaoEnviar.style.opacity = ".6";
       arquivo.disabled = true;
+      processando("Preparando a imagem…", arrumarTexto(e.evento));
       try {
         let imagem;
         try { imagem = await prepararImagem(escolhido); } catch {
           throw new Error("Não consegui abrir esse arquivo. Use uma imagem JPG ou PNG.");
         }
         situacao.textContent = "Enviando para o Drive…";
+        processando("Enviando a imagem…", "Pode levar alguns segundos. Não feche esta tela.");
         await api("enviarBanner", { linha: e.linha, evento: e.evento, data: e.data, base64: imagem.base64, tipo: imagem.tipo });
         avisar(`Banner de "${arrumarTexto(e.evento)}" enviado. Já aparece na agenda do site.`);
       } catch (erro) {
         situacao.classList.add("erro");
         situacao.textContent = erro.message;
       } finally {
+        fimProcessando();
         arquivo.disabled = false;
         arquivo.value = "";
         botaoEnviar.style.opacity = "";
