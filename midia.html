@@ -41,11 +41,19 @@
   button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--destaque); outline-offset: 2px; }
   [hidden] { display: none !important; }
 
-  header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-  header img { width: 48px; height: 48px; border-radius: 50%; background: #fff; }
-  header h1 { font-size: 22px; font-weight: 800; line-height: 1.2; }
-  header p { color: var(--texto-suave); font-size: 14px; }
-  header .acoes { margin-left: auto; display: flex; gap: 8px; }
+  /* topo: uma linha só (logo, quem está usando, atualizar/sair) */
+  header { display: flex; align-items: center; gap: 12px; }
+  header img { flex: none; width: 44px; height: 44px; border-radius: 50%; background: #fff; }
+  header > div:first-of-type { flex: 1; min-width: 0; }
+  header h1 { font-size: 20px; font-weight: 800; line-height: 1.2; }
+  header p { color: var(--texto-suave); font-size: 13px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header .acoes { flex: none; display: flex; gap: 6px; }
+  .icone {
+    width: 40px; height: 40px; display: grid; place-items: center; padding: 0; cursor: pointer;
+    border-radius: 50%; border: 1px solid var(--linha); background: transparent; color: var(--texto-suave);
+  }
+  .icone:hover { color: var(--texto); }
+  .icone svg { width: 20px; height: 20px; }
 
   /* VISITAS DO SITE (visitas.js) */
   .periodos { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 4px; }
@@ -112,24 +120,33 @@
   .entrar p { color: var(--texto-suave); font-size: 15px; line-height: 1.5; margin-top: 8px; }
   #botaoGoogle { display: flex; justify-content: center; margin-top: 20px; min-height: 44px; }
 
-  /* barra de cima: quem está usando */
-  .ola { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
-  .ola strong { font-size: 18px; }
-  .ola .acoes { margin-left: auto; display: flex; gap: 8px; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .chip { border: 1px solid var(--linha); border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 600; color: var(--destaque); }
 
-  /* seções do portal */
-  .secoes { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0 4px; }
-  .secoes button {
-    border: 1px solid var(--linha); background: transparent; color: var(--texto);
-    border-radius: 999px; padding: 10px 16px; font-size: 15px; font-weight: 600; cursor: pointer;
+  /* menu fixo embaixo, no alcance do polegar (como nos aplicativos) */
+  body.com-menu { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 96px); }
+  .menu {
+    position: fixed; z-index: 20; left: 0; right: 0; bottom: 0;
+    display: flex; justify-content: center;
+    padding: 6px 8px calc(env(safe-area-inset-bottom, 0px) + 6px);
+    background: var(--fundo-2); border-top: 1px solid var(--linha); box-shadow: 0 -6px 20px rgba(0,0,0,.3);
   }
-  .secoes button[aria-selected="true"] { background: var(--destaque); border-color: var(--destaque); color: var(--botao-texto); }
-  .secoes .contador {
-    display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; margin-left: 4px;
-    border-radius: 999px; background: var(--erro); color: #3b0d09; font-size: 12px; font-weight: 800;
+  .menu > div { display: flex; width: 100%; max-width: 560px; }
+  .menu button {
+    flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 6px 2px; border: 0; border-radius: 12px; background: none; cursor: pointer;
+    color: var(--texto-suave); font-size: 11px; font-weight: 600;
   }
+  .menu button svg { width: 24px; height: 24px; }
+  .menu button[aria-selected="true"] { color: var(--destaque); }
+  .menu .contador {
+    position: absolute; top: 0; left: calc(50% + 6px);
+    display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px;
+    border-radius: 999px; background: var(--erro); color: #3b0d09; font-size: 11px; font-weight: 800;
+  }
+  .titulo-secao { font-size: 22px; font-weight: 800; margin-top: 22px; }
+  .titulo-secao + .aviso:empty { min-height: 0; margin: 0; } /* sem aviso: o primeiro cartão encosta no título */
+  .rodape { margin-top: 28px; text-align: center; }
   .aviso { min-height: 20px; margin-top: 10px; font-size: 14px; color: var(--texto-suave); }
   .aviso.erro { color: var(--erro); }
   .conteudo { transition: opacity .2s; }
@@ -212,9 +229,6 @@
   .tarefa.feita .texto { text-decoration: line-through; color: var(--texto-suave); }
   .atrasada { color: var(--erro) !important; }
 
-  @media (max-width: 720px) {
-    header .acoes, .ola .acoes { margin-left: 0; }
-  }
   @media (prefers-reduced-motion: reduce) { .conteudo { transition: none; } }
 </style>
 </head>
@@ -223,11 +237,12 @@
   <header>
     <img src="img/midia-logo.webp" alt="Mídia e Comunicação · Cura Nossa Terra">
     <div>
-      <h1>Portal da Mídia</h1>
-      <p>Escala, eventos, banners e visitas do site</p>
+      <h1 id="titulo">Portal da Mídia</h1>
+      <p id="subtitulo">Escala, eventos e banners da equipe</p>
     </div>
-    <div class="acoes">
-      <a class="link-suave" href="./">Ir para o Portal da Cura ›</a>
+    <div class="acoes" id="acoesTopo" hidden>
+      <button class="icone" id="atualizar" type="button" aria-label="Atualizar" title="Atualizar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
+      <button class="icone" id="sair" type="button" aria-label="Sair" title="Sair"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l5-5-5-5"/><path d="M15 12H4"/></svg></button>
     </div>
   </header>
 
@@ -242,32 +257,24 @@
   </section>
 
   <section id="telaPortal" hidden>
-    <div class="ola">
-      <div>
-        <strong id="olaNome"></strong>
-        <div class="chips" id="olaFuncoes"></div>
+    <nav class="menu" aria-label="Seções">
+      <div role="tablist">
+        <button type="button" role="tab" data-secao="minhas" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Início<span class="contador" id="contaTarefas" hidden></span></button>
+        <button type="button" role="tab" data-secao="escala" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Escala</button>
+        <button type="button" role="tab" data-secao="eventos" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Eventos<span class="contador" id="contaPendencias" hidden></span></button>
+        <button type="button" role="tab" data-secao="visitas" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Visitas</button>
+        <button type="button" role="tab" data-secao="lider" aria-selected="false" id="abaLider" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></svg>Líder</button>
       </div>
-      <div class="acoes">
-        <button class="link-suave" id="atualizar" type="button">Atualizar</button>
-        <button class="link-suave" id="sair" type="button">Sair</button>
-      </div>
-    </div>
+    </nav>
 
-    <div class="secoes" role="tablist" aria-label="Seções">
-      <button type="button" role="tab" data-secao="minhas" aria-selected="true">Minhas funções<span class="contador" id="contaTarefas" hidden></span></button>
-      <button type="button" role="tab" data-secao="escala" aria-selected="false">Escala</button>
-      <button type="button" role="tab" data-secao="eventos" aria-selected="false">Eventos<span class="contador" id="contaPendencias" hidden></span></button>
-      <button type="button" role="tab" data-secao="visitas" aria-selected="false">Visitas do site</button>
-      <button type="button" role="tab" data-secao="tarefas" aria-selected="false" id="abaTarefas" hidden>Tarefas</button>
-      <button type="button" role="tab" data-secao="equipe" aria-selected="false" id="abaEquipe" hidden>Equipe</button>
-    </div>
+    <h2 class="titulo-secao" id="tituloSecao">Início</h2>
     <p class="aviso" id="aviso" role="status"></p>
 
     <div class="conteudo" id="conteudo">
       <section data-painel="minhas">
         <div class="cartao" id="cartaoPendencias" hidden>
           <h2 id="tituloPendencias"></h2>
-          <p class="sub">A Ariane lançou na agenda e ainda falta o banner. Cole o link do Drive para aparecer no site.</p>
+          <p class="sub">A Ariane lançou na agenda e ainda falta o banner. Envie a arte para aparecer no site.</p>
           <button class="principal" type="button" id="irEventos" style="margin-top:12px">Ver eventos</button>
         </div>
         <div class="cartao">
@@ -334,17 +341,15 @@
         </div>
       </section>
 
-      <section data-painel="tarefas" hidden>
+      <section data-painel="lider" hidden>
         <div class="cartao">
           <h2>Tarefas da equipe</h2>
-          <p class="sub">Cada pessoa vê as dela em "Minhas funções" e marca quando terminar.</p>
+          <p class="sub">Cada pessoa vê as dela no Início e marca quando terminar.</p>
           <button class="principal" type="button" id="novaTarefa" style="margin-top:12px">Nova tarefa</button>
         </div>
         <ul class="lista" id="listaTarefas"></ul>
-      </section>
 
-      <section data-painel="equipe" hidden>
-        <div class="cartao">
+        <div class="cartao" style="margin-top:28px">
           <h2>Equipe da Mídia</h2>
           <p class="sub">Quem tem e-mail cadastrado consegue entrar no portal. O líder monta a escala e cuida da equipe.</p>
           <button class="principal" type="button" id="novoMembro" style="margin-top:12px">Adicionar pessoa</button>
@@ -352,6 +357,8 @@
         <ul class="lista" id="listaEquipe"></ul>
       </section>
     </div>
+
+    <p class="rodape"><a class="link-suave" href="./">‹ Ir para o Portal da Cura</a></p>
   </section>
 
   <!-- editar a escala de um culto/evento (líder) -->
@@ -506,6 +513,8 @@
       $("erroEntrar").textContent = "";
       $("telaEntrar").hidden = true;
       $("telaPortal").hidden = false;
+      $("acoesTopo").hidden = false;
+      document.body.classList.add("com-menu");
     } catch (e) {
       if (e.codigo !== "entrar") sair(e.message);
     }
@@ -519,6 +528,10 @@
     $("telaPortal").hidden = true;
     $("telaEntrar").hidden = false;
     $("erroEntrar").textContent = mensagem;
+    $("acoesTopo").hidden = true;
+    document.body.classList.remove("com-menu");
+    $("titulo").textContent = "Portal da Mídia";
+    $("subtitulo").textContent = "Escala, eventos e banners da equipe";
   }
 
   // Toda conversa com o Apps Script passa por aqui (a seção de visitas também usa).
@@ -585,11 +598,9 @@
   // DESENHAR AS SEÇÕES
   function desenhar() {
     const eu = dados.eu;
-    $("olaNome").textContent = `Olá, ${eu.nome}`;
-    $("olaFuncoes").replaceChildren(...eu.funcoes.map((f) => criar("span", { className: "chip", textContent: f })));
-    if (eu.coordenador) $("olaFuncoes").append(criar("span", { className: "chip", textContent: "Líder" }));
-    $("abaEquipe").hidden = !eu.coordenador;
-    $("abaTarefas").hidden = !eu.coordenador;
+    $("titulo").textContent = `Olá, ${eu.nome}`;
+    $("subtitulo").textContent = ["Portal da Mídia", eu.coordenador ? "Líder" : "", ...eu.funcoes].filter(Boolean).join(" · ");
+    $("abaLider").hidden = !eu.coordenador;
 
     const lista = ocasioes();
     desenharMinhas(lista);
@@ -1008,13 +1019,16 @@
 
   // ---------------------------------------------------------------------------
   // NAVEGAÇÃO E BOTÕES
+  const TITULOS = { minhas: "Início", escala: "Escala", eventos: "Eventos", visitas: "Visitas do site", lider: "Líder" };
   function mostrarSecao(nome) {
-    document.querySelectorAll(".secoes button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.secao === nome)));
+    document.querySelectorAll(".menu button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.secao === nome)));
+    $("tituloSecao").textContent = TITULOS[nome];
+    scrollTo(0, 0);
     document.querySelectorAll("[data-painel]").forEach((p) => { p.hidden = p.dataset.painel !== nome; });
     avisar("");
     if (nome === "visitas") Visitas.abrir();
   }
-  document.querySelectorAll(".secoes button").forEach((b) => b.addEventListener("click", () => mostrarSecao(b.dataset.secao)));
+  document.querySelectorAll(".menu button").forEach((b) => b.addEventListener("click", () => mostrarSecao(b.dataset.secao)));
   $("irEventos").addEventListener("click", () => mostrarSecao("eventos"));
   $("maisSemanas").addEventListener("click", () => { semanas += 6; desenhar(); });
   $("atualizar").addEventListener("click", () => {
