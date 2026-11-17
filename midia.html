@@ -53,6 +53,11 @@
     border-radius: 50%; border: 1px solid var(--linha); background: transparent; color: var(--texto-suave);
   }
   .icone:hover { color: var(--texto); }
+  /* título do cartão com um botão redondo no canto (ex.: adicionar pessoa) */
+  .cartao-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .icone.destaque { flex: none; width: 46px; height: 46px; border: 0; background: var(--destaque); color: var(--botao-texto); }
+  .icone.destaque:hover { color: var(--botao-texto); filter: brightness(1.08); }
+  .icone.destaque svg { width: 22px; height: 22px; }
   .icone svg { width: 20px; height: 20px; }
 
   /* VISITAS DO SITE (visitas.js) */
@@ -282,7 +287,8 @@
         <button type="button" role="tab" data-secao="escala" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Escala</button>
         <button type="button" role="tab" data-secao="eventos" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Eventos<span class="contador" id="contaPendencias" hidden></span></button>
         <button type="button" role="tab" data-secao="visitas" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Estatísticas</button>
-        <button type="button" role="tab" data-secao="lider" aria-selected="false" id="abaLider" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></svg>Líder</button>
+        <button type="button" role="tab" data-secao="tarefas" aria-selected="false" id="abaTarefas" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 12l2 2 4-4"/></svg>Tarefas</button>
+        <button type="button" role="tab" data-secao="equipe" aria-selected="false" id="abaLider" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></svg>Equipe</button>
       </div>
     </nav>
 
@@ -364,19 +370,22 @@
         </div>
       </section>
 
-      <section data-painel="lider" hidden>
+      <!-- só o líder vê estas duas seções -->
+      <section data-painel="tarefas" hidden>
         <div class="cartao">
-          <h2>Tarefas da equipe</h2>
-          <p class="sub">Cada pessoa vê as dela no Início e marca quando terminar.</p>
+          <p class="sub" style="margin-top:0">Cada pessoa vê as dela no Início e marca quando terminar.</p>
           <button class="principal" type="button" id="novaTarefa" style="margin-top:12px">Nova tarefa</button>
         </div>
         <ul class="lista" id="listaTarefas"></ul>
+      </section>
 
-        <div class="cartao" style="margin-top:28px">
-          <h2>Equipe da Mídia</h2>
-          <p class="sub">Quem tem e-mail cadastrado consegue entrar no portal. O líder monta a escala e cuida da equipe.</p>
+      <section data-painel="equipe" hidden>
+        <div class="cartao">
+          <div class="cartao-topo">
+            <p class="sub" style="margin-top:0">Quem tem e-mail cadastrado consegue entrar no portal. O líder monta a escala e cuida da equipe.</p>
+            <button class="icone destaque" type="button" id="novoMembro" aria-label="Adicionar pessoa" title="Adicionar pessoa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M19 8v6M16 11h6"/></svg></button>
+          </div>
           <p class="sub online" id="agoraNoPortal"></p>
-          <button class="principal" type="button" id="novoMembro" style="margin-top:12px">Adicionar pessoa</button>
         </div>
         <ul class="lista" id="listaEquipe"></ul>
       </section>
@@ -643,6 +652,7 @@
     $("titulo").textContent = `Olá, ${eu.nome}`;
     $("subtitulo").textContent = ["Portal da Mídia", eu.coordenador ? "Líder" : "", ...eu.funcoes].filter(Boolean).join(" · ");
     $("abaLider").hidden = !eu.coordenador;
+    $("abaTarefas").hidden = !eu.coordenador;
 
     const lista = ocasioes();
     desenharMinhas(lista);
@@ -1215,7 +1225,7 @@
 
   // ---------------------------------------------------------------------------
   // NAVEGAÇÃO E BOTÕES
-  const TITULOS = { minhas: "Início", escala: "Escala", eventos: "Eventos", visitas: "Estatísticas do Portal da Cura", lider: "Líder" };
+  const TITULOS = { minhas: "Início", escala: "Escala", eventos: "Eventos", visitas: "Estatísticas do Portal da Cura", tarefas: "Tarefas da equipe", equipe: "Equipe da Mídia" };
   function mostrarSecao(nome) {
     document.querySelectorAll(".menu button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.secao === nome)));
     $("tituloSecao").textContent = TITULOS[nome];
