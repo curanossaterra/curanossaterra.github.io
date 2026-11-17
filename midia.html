@@ -228,6 +228,7 @@
   .tarefa .texto { font-size: 15px; overflow-wrap: anywhere; }
   .tarefa.feita .texto { text-decoration: line-through; color: var(--texto-suave); }
   .atrasada { color: var(--erro) !important; }
+  .online { color: var(--ok) !important; font-weight: 600; }
 
   @media (prefers-reduced-motion: reduce) { .conteudo { transition: none; } }
 </style>
@@ -352,6 +353,7 @@
         <div class="cartao" style="margin-top:28px">
           <h2>Equipe da Mídia</h2>
           <p class="sub">Quem tem e-mail cadastrado consegue entrar no portal. O líder monta a escala e cuida da equipe.</p>
+          <p class="sub online" id="agoraNoPortal"></p>
           <button class="principal" type="button" id="novoMembro" style="margin-top:12px">Adicionar pessoa</button>
         </div>
         <ul class="lista" id="listaEquipe"></ul>
@@ -855,12 +857,27 @@
     return criar("div", {}, envio, criar("p", { className: "ou", textContent: "ou cole o link:" }), form);
   }
 
+  // "2026-11-17 13:40" (hora de Brasília, gravada pelo Apps Script) -> "Usando agora" / "hoje às 13:40" / "12/11 às 09:00"
+  function acesso(m) {
+    if (!m.ultimoAcesso) return m.email ? { texto: "Nunca entrou no portal", classe: "" } : null;
+    const [data, hora] = m.ultimoAcesso.split(" ");
+    const quando = new Date(`${data}T${hora}:00`);
+    if (Date.now() - quando < 5 * 60000) return { texto: "● Usando agora", classe: "online" };
+    const hoje = iso(new Date());
+    const ontem = iso(new Date(Date.now() - 86400000));
+    const dia = data === hoje ? "hoje" : data === ontem ? "ontem" : rotuloDia(data).split(", ")[1];
+    return { texto: `Último acesso: ${dia} às ${hora}`, classe: "" };
+  }
+
   function desenharEquipe() {
+    const agoraNoPortal = dados.equipe.filter((m) => (acesso(m) || {}).classe === "online").map((m) => m.nome);
+    $("agoraNoPortal").textContent = agoraNoPortal.length ? `No portal agora: ${agoraNoPortal.join(", ")}` : "";
     $("listaEquipe").replaceChildren(...dados.equipe.map((m) => criar("li", { className: "item" },
       criar("div", { className: "topo" },
         criar("div", {},
           criar("strong", { textContent: m.nome }),
           criar("small", { textContent: m.email || "Sem e-mail: aparece na escala, mas não entra no portal" }),
+          acesso(m) ? criar("small", { className: acesso(m).classe, textContent: acesso(m).texto }) : null,
           criar("div", { className: "chips", style: "margin-top:8px" },
             m.funcoes.map((f) => criar("span", { className: "chip", textContent: f })),
             m.coordenador ? criar("span", { className: "chip", textContent: "Líder" }) : null,
@@ -1038,6 +1055,11 @@
   $("sair").addEventListener("click", () => sair());
   document.querySelectorAll("[data-fechar]").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
   document.querySelectorAll("dialog").forEach((d) => d.addEventListener("click", (e) => { if (e.target === d) d.close(); }));
+
+  // Sinal de "estou usando" a cada 2 minutos com a tela aberta: o líder vê quem está no portal agora.
+  const avisarQueEstouAqui = () => { if (token && document.visibilityState === "visible") pedir("ping").catch(() => {}); };
+  setInterval(avisarQueEstouAqui, 120000);
+  document.addEventListener("visibilitychange", avisarQueEstouAqui);
 
   // INÍCIO
   if (!API || !CLIENT_ID) {

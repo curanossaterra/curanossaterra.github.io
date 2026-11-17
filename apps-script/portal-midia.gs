@@ -42,7 +42,9 @@ function doPost(e) {
   try {
     const pedido = JSON.parse(e.postData.contents);
     const eu = quemEstaUsando(pedido.token);
-    resposta = pedido.acao === "visitas" ? visitas(pedido) : executar(pedido, eu);
+    if (pedido.acao === "ping") resposta = { ok: true }; // só registra o acesso (feito em quemEstaUsando)
+    else if (pedido.acao === "visitas") resposta = visitas(pedido);
+    else resposta = executar(pedido, eu);
   } catch (err) {
     resposta = { erro: err.message, codigo: err.codigo || "" };
   }
@@ -113,7 +115,10 @@ function quemEstaUsando(token) {
   }
   const dono = Session.getEffectiveUser().getEmail().toLowerCase();
   const membro = lerEquipe().find((m) => m.email === email);
-  if (membro) return Object.assign({}, membro, { coordenador: membro.coordenador || email === dono });
+  if (membro) {
+    registrarAcesso(membro);
+    return Object.assign({}, membro, { coordenador: membro.coordenador || email === dono });
+  }
   // a conta da igreja, fora da lista da equipe: usa o nome da conta Google
   if (email === dono) return { email, nome: nomeGoogle || "Líder", funcoes: [], coordenador: true };
   throw falha(`O e-mail ${email} ainda não está na equipe da Mídia. Peça para o líder cadastrar você.`, "sem-acesso");
@@ -238,8 +243,21 @@ function lerEquipe() {
       nome: l[1].trim(),
       funcoes: l[2].split(/[,;]/).map((f) => f.trim()).filter(Boolean),
       coordenador: marcado(l[3]),
+      ultimoAcesso: (l[4] || "").trim(),
     }))
     .filter((m) => m.nome);
+}
+
+// Último acesso de cada pessoa (coluna E da aba Equipe), para o líder saber quem está usando o portal.
+// Grava no máximo a cada 2 minutos por pessoa, para não escrever na planilha a cada clique.
+function registrarAcesso(membro) {
+  const cache = CacheService.getScriptCache();
+  const chave = "visto:" + membro.email;
+  if (cache.get(chave)) return;
+  const aba = planilhaDeDados().getSheetByName("Equipe");
+  if (!aba.getRange(1, 5).getDisplayValue()) aba.getRange(1, 5).setValue("Último acesso");
+  aba.getRange(membro.linha, 5).setNumberFormat("@").setValue(agora());
+  cache.put(chave, "1", 120);
 }
 
 function salvarMembro(pedido) {
