@@ -127,26 +127,11 @@
   .banner .quadro { position: relative; }
   button:focus-visible { outline: 3px solid var(--texto); outline-offset: 3px; }
 
-  .cultos { margin-top: 28px; }
-  .cultos h2 { font-size: 20px; font-weight: 600; margin-bottom: 16px; }
-  .cultos ul { list-style: none; display: grid; gap: 10px; }
-  .cultos li {
-    display: flex; justify-content: space-between; align-items: center; gap: 12px;
-    padding: 14px 18px; border-radius: 16px; text-align: left;
-    border: 1px solid rgba(201,164,99,.35); background: rgba(255,255,255,.04);
-  }
-  .cultos strong { font-weight: 600; font-size: 16px; }
-  .cultos small { display: block; color: var(--texto-suave); font-size: 13px; margin-top: 2px; }
-  .cultos .live, .agenda .live {
+  .agenda .live {
     display: flex; width: fit-content; align-items: center; gap: 5px; margin-top: 6px;
     color: #ff4e45; font-size: 12px; font-weight: 600; text-decoration: none;
   }
-  .cultos .live svg, .agenda .live svg { width: 16px; height: 16px; }
-  .cultos .hora { color: var(--destaque); font-weight: 800; font-size: 16px; white-space: nowrap; }
-  .cultos li.tem-banner { cursor: pointer; }
-  .cultos li.tem-banner:active { transform: scale(.98); }
-  .cultos li.tem-banner:focus-visible { outline: 3px solid var(--destaque); outline-offset: 3px; }
-  .cultos .ver { display: block; color: var(--destaque); font-size: 12px; font-weight: 600; margin-top: 4px; }
+  .agenda .live svg { width: 16px; height: 16px; }
   h2 { font-size: 20px; font-weight: 600; margin-bottom: 16px; }
   .eventos { margin-top: 36px; }
   .eventos .agenda { margin-top: 0; }
@@ -165,14 +150,9 @@
   <h1>Agenda</h1>
   <p class="frase">Programe-se e venha com a gente.</p>
 
-  <!-- CULTOS FIXOS: horários ficam no comum.js (CULTOS) -->
-  <section class="cultos">
-    <h2>Cultos</h2>
-    <ul id="cultos"></ul>
-  </section>
-
+  <!-- UMA LISTA SÓ: os eventos da planilha (Ariane) + os cultos fixos (comum.js, CULTOS), por mês -->
   <section class="eventos">
-    <h2>Próximos eventos</h2>
+    <h2>Programação</h2>
     <ul class="agenda" id="agenda"></ul>
     <p class="aviso" id="aviso" role="status">Carregando agenda…</p>
   </section>
@@ -241,63 +221,38 @@
     return m ? `https://lh3.googleusercontent.com/d/${m[1]}=w1600` : texto;
   }
 
-  // CULTOS FIXOS (lista CULTOS no comum.js)
-  const linhaDoCulto = new Map(); // culto -> { li, info }, para ligar o banner da semana depois
-  for (const c of CULTOS) {
-    const li = document.createElement("li");
-    const info = document.createElement("div");
-    info.append(criar("strong", "", c.nome));
-    if (c.obs) info.append(criar("small", "", c.obs));
-    if (c.aoVivo) {
-      const live = document.createElement("a");
-      live.className = "live";
-      live.href = LINK_AO_VIVO;
-      live.dataset.clique = "Agenda: Ao vivo " + c.nome;
-      live.innerHTML = YOUTUBE_SVG + "Ao vivo no YouTube";
-      live.addEventListener("click", (ev) => ev.stopPropagation()); // não abre o "Saiba mais"
-      info.append(live);
-    }
-    li.append(info, criar("span", "hora", horarioDoCulto(c)));
-    document.getElementById("cultos").append(li);
-    linhaDoCulto.set(c, { li, info });
-  }
-
-  // BANNER DOS CULTOS: a Mídia coloca pelo Portal da Mídia, um por data.
-  // Cada culto mostra o banner da sua PRÓXIMA data (o de hoje vale até o fim do dia).
+  // CULTOS FIXOS NA LISTA: gerados sozinhos a partir da lista CULTOS (comum.js), nas próximas semanas.
+  // A Ariane não precisa lançar. Se ela lançar um evento numa data, o culto de rotina daquele dia sai da lista.
+  // O banner de cada culto (um por data) vem do Portal da Mídia.
+  const SEMANAS_CULTOS = 2;
   const API_MIDIA = "https://script.google.com/macros/s/AKfycbxPpciahsKz8OoAl0oBLex7PUzx5WXROlrsT2Y7mIZPY3tG5WbMUXEbuTV-yZtGkRZrlA/exec";
-  function proximaData(c) {
-    const d = new Date(); d.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 40; i++, d.setDate(d.getDate() + 1)) {
-      if (c.dia === d.getDay() && (!c.primeiroDomingo || d.getDate() <= 7)) return new Date(d);
-    }
-    return null;
-  }
-  const isoDe = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  fetch(API_MIDIA)
+  const bannersDosCultos = fetch(API_MIDIA)
     .then((r) => r.json())
-    .then(({ cultos = [] }) => {
-      for (const [c, { li, info }] of linhaDoCulto) {
-        const d = proximaData(c);
-        const b = d && cultos.find((x) => x.data === isoDe(d) && normalizar(x.culto) === normalizar(c.nome));
-        if (!b) continue;
-        const e = {
-          dia: `${DIAS_SEMANA[d.getDay()]}, ${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`,
-          hora: `${c.hora}:${String(c.minuto).padStart(2, "0")}`,
-          evento: c.nome,
-          banner: linkDaImagem(b.banner),
-        };
-        info.append(criar("span", "ver", "Saiba mais ›"));
-        li.className = "tem-banner";
-        li.tabIndex = 0;
-        li.setAttribute("role", "button");
-        li.dataset.clique = "Saiba mais: " + c.nome;
-        li.addEventListener("click", () => abrirBanner(e));
-        li.addEventListener("keydown", (ev) => {
-          if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); abrirBanner(e); }
+    .then((j) => j.cultos || [])
+    .catch(() => []); // sem resposta: os cultos aparecem, só sem banner
+  const isoDe = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const diaCurto = (d) => `${DIAS_SEMANA[d.getDay()]}, ${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+  function cultosDaAgenda(eventos, banners) {
+    const ocupadas = new Set(eventos.filter((e) => e.data).map((e) => isoDe(e.data)));
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const lista = [];
+    for (let i = 0; i < SEMANAS_CULTOS * 7; i++) {
+      const d = new Date(hoje); d.setDate(d.getDate() + i);
+      if (ocupadas.has(isoDe(d))) continue;
+      for (const c of CULTOS) {
+        if (c.dia !== d.getDay() || (c.primeiroDomingo && d.getDate() > 7)) continue;
+        const b = banners.find((x) => x.data === isoDe(d) && normalizar(x.culto) === normalizar(c.nome));
+        lista.push({
+          dia: diaCurto(d), data: new Date(d),
+          hora: `${String(c.hora).padStart(2, "0")}:${String(c.minuto).padStart(2, "0")}`,
+          evento: c.nome, obs: "", ministerio: "",
+          banner: b ? linkDaImagem(b.banner) : "", inscricao: "", aovivo: !!c.aoVivo,
         });
       }
-    })
-    .catch(() => {}); // sem banner dos cultos, a agenda continua normal
+    }
+    return lista;
+  }
 
   const lista = document.getElementById("agenda");
   const aviso = document.getElementById("aviso");
@@ -339,6 +294,7 @@
   }
 
   async function carregar() {
+    let daPlanilha = [];
     try {
       const [cabecalho, ...linhas] = await lerPlanilha();
       const col = acharColunas(cabecalho);
@@ -347,7 +303,7 @@
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
-      const eventos = linhas
+      daPlanilha = linhas
         .map((l) => {
           const dia = pegar(l, col.dia);
           const data = lerData(dia);
@@ -366,14 +322,28 @@
             aovivo: /^(true|sim|s|x|✓)$/i.test(pegar(l, col.aovivo)),
           };
         })
-        .filter((e) => e.evento && !e.feito && !(e.data && e.data < hoje))
-        // com data primeiro, em ordem (mesmo dia: por horário); sem data (ex.: "Domingo") mantém a ordem da planilha
-        .sort((a, b) => (a.data && b.data ? a.data - b.data || a.hora.localeCompare(b.hora, "pt", { numeric: true }) : !a.data - !b.data));
+        .filter((e) => e.evento && !e.feito && !(e.data && e.data < hoje));
+      aviso.textContent = "";
+    } catch {
+      aviso.textContent = "Não foi possível carregar os eventos agora. Tente novamente mais tarde.";
+    }
+    desenhar(daPlanilha, []);
+    const banners = await bannersDosCultos;
+    if (banners.length) desenhar(daPlanilha, banners);
+  }
 
-      if (!eventos.length) {
-        aviso.textContent = "Nenhum evento na agenda no momento.";
-        return;
-      }
+  function desenhar(daPlanilha, banners) {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const eventos = [...daPlanilha, ...cultosDaAgenda(daPlanilha, banners)]
+      // com data primeiro, em ordem (mesmo dia: por horário); sem data (ex.: "Domingo") mantém a ordem da planilha
+      .sort((a, b) => (a.data && b.data ? a.data - b.data || a.hora.localeCompare(b.hora, "pt", { numeric: true }) : !a.data - !b.data));
+    lista.replaceChildren();
+    if (!eventos.length) {
+      if (!aviso.textContent) aviso.textContent = "Nenhum evento na agenda no momento.";
+      return;
+    }
+    {
       // título a cada mês novo ("Novembro"); de anos seguintes leva o ano ("Janeiro de 2027")
       let mesAnterior = "";
       for (const e of eventos) {
@@ -419,9 +389,6 @@
         li.append(logo, info, criar("span", "hora", formatarHora(hora)));
         lista.append(li);
       }
-      aviso.textContent = "";
-    } catch {
-      aviso.textContent = "Não foi possível carregar a agenda agora. Tente novamente mais tarde.";
     }
   }
   carregar();
