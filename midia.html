@@ -934,6 +934,7 @@
 
   // CULTOS DA SEMANA (lista CULTOS do comum.js) nas próximas 2 semanas, cada um com o banner da sua data.
   // Entram na tela Eventos junto com os da Ariane; sem banner, contam como pendência.
+  // Se a Ariane lançou um evento na mesma data, o culto de rotina daquele dia não aparece.
   const SEMANAS_CULTOS = 2;
   function cultosDaSemana() {
     const banners = dados.bannersCultos || [];
@@ -944,6 +945,7 @@
       CULTOS.forEach((c) => {
         if (c.dia !== d.getDay() || (c.primeiroDomingo && d.getDate() > 7)) return;
         const data = iso(d);
+        if (dados.eventos.some((e) => e.data === data)) return; // dia com evento da Ariane: o culto de rotina sai da lista
         const b = banners.find((x) => x.data === data && mesmoNome(x.culto, c.nome)) || {};
         lista.push({
           culto: true, data, evento: c.nome, ministerio: "Culto da semana",
