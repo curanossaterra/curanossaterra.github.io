@@ -339,7 +339,7 @@
       <section data-painel="minhas">
         <div class="cartao" id="cartaoPendencias" hidden>
           <h2 id="tituloPendencias"></h2>
-          <p class="sub">A Ariane lançou na agenda e ainda falta o banner. Envie a arte para aparecer no site.</p>
+          <p class="sub">Eventos da agenda e cultos da semana que ainda estão sem banner. Envie a arte para aparecer no site.</p>
           <button class="principal" type="button" id="irEventos" style="margin-top:12px">Ver eventos</button>
         </div>
         <div class="cartao">
@@ -836,7 +836,7 @@
     $("contaTarefas").hidden = !abertas;
     $("contaTarefas").textContent = abertas;
 
-    const pendentes = dados.eventos.filter((e) => !e.banner).length;
+    const pendentes = todosEventos().filter((e) => !e.banner).length;
     $("cartaoPendencias").hidden = !pendentes;
     $("tituloPendencias").textContent = pendentes === 1 ? "1 evento sem banner" : `${pendentes} eventos sem banner`;
     $("contaPendencias").hidden = !pendentes;
@@ -932,9 +932,33 @@
     return criar("div", { className: "presenca" }, criar("span", { textContent: "Você vai estar?" }), sim, nao);
   }
 
+  // CULTOS DA SEMANA (lista CULTOS do comum.js) nas próximas 2 semanas, cada um com o banner da sua data.
+  // Entram na tela Eventos junto com os da Ariane; sem banner, contam como pendência.
+  const SEMANAS_CULTOS = 2;
+  function cultosDaSemana() {
+    const banners = dados.bannersCultos || [];
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const lista = [];
+    for (let i = 0; i < SEMANAS_CULTOS * 7; i++) {
+      const d = new Date(hoje); d.setDate(d.getDate() + i);
+      CULTOS.forEach((c) => {
+        if (c.dia !== d.getDay() || (c.primeiroDomingo && d.getDate() > 7)) return;
+        const data = iso(d);
+        const b = banners.find((x) => x.data === data && mesmoNome(x.culto, c.nome)) || {};
+        lista.push({
+          culto: true, data, evento: c.nome, ministerio: "Culto da semana",
+          hora: `${String(c.hora).padStart(2, "0")}:${String(c.minuto).padStart(2, "0")}`,
+          banner: b.banner || "", enviadoPor: b.enviadoPor, enviadoEm: b.enviadoEm,
+        });
+      });
+    }
+    return lista;
+  }
+  const todosEventos = () => [...dados.eventos, ...cultosDaSemana()];
+
   function desenharEventos() {
     // por data (os sem data no fim); os sem banner continuam destacados em vermelho
-    const eventos = [...dados.eventos].sort((a, b) => (a.data || "9").localeCompare(b.data || "9") || (a.hora || "").localeCompare(b.hora || ""));
+    const eventos = todosEventos().sort((a, b) => (a.data || "9").localeCompare(b.data || "9") || (a.hora || "").localeCompare(b.hora || ""));
     if (!eventos.length) {
       $("listaEventos").replaceChildren(criar("li", { className: "vazio", textContent: "Nenhum evento futuro na agenda." }));
       return;
@@ -1000,7 +1024,7 @@
   async function excluirBanner(e) {
     if (!confirm(`Excluir o banner de "${arrumarTexto(e.evento)}"? Ele sai do site e o evento volta a ficar pendente.`)) return;
     try {
-      await api("excluirBanner", { linha: e.linha, evento: e.evento, banner: e.banner });
+      await api("excluirBanner", { linha: e.linha, culto: !!e.culto, evento: e.evento, data: e.data, banner: e.banner });
       avisar("Banner excluído.");
     } catch (erro) {
       avisar(erro.message, true);
@@ -1055,7 +1079,7 @@
         }
         situacao.textContent = "Enviando para o Drive…";
         processando("Enviando a imagem…", "Pode levar alguns segundos. Não feche esta tela.");
-        await api("enviarBanner", { linha: e.linha, evento: e.evento, data: e.data, base64: imagem.base64, tipo: imagem.tipo });
+        await api("enviarBanner", { linha: e.linha, culto: !!e.culto, evento: e.evento, data: e.data, base64: imagem.base64, tipo: imagem.tipo });
         avisar(`Banner de "${arrumarTexto(e.evento)}" enviado. Já aparece na agenda do site.`);
       } catch (erro) {
         situacao.classList.add("erro");
@@ -1095,7 +1119,7 @@
       }
       botao.disabled = true;
       try {
-        await api("salvarBanner", { linha: e.linha, evento: e.evento, link });
+        await api("salvarBanner", { linha: e.linha, culto: !!e.culto, evento: e.evento, data: e.data, link });
         avisar(link ? `Banner de "${arrumarTexto(e.evento)}" salvo. Já aparece na agenda do site.` : "Banner removido.");
       } catch (erro) {
         botao.disabled = false;

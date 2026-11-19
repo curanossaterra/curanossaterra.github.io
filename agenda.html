@@ -143,6 +143,10 @@
   }
   .cultos .live svg, .agenda .live svg { width: 16px; height: 16px; }
   .cultos .hora { color: var(--destaque); font-weight: 800; font-size: 16px; white-space: nowrap; }
+  .cultos li.tem-banner { cursor: pointer; }
+  .cultos li.tem-banner:active { transform: scale(.98); }
+  .cultos li.tem-banner:focus-visible { outline: 3px solid var(--destaque); outline-offset: 3px; }
+  .cultos .ver { display: block; color: var(--destaque); font-size: 12px; font-weight: 600; margin-top: 4px; }
   h2 { font-size: 20px; font-weight: 600; margin-bottom: 16px; }
   .eventos { margin-top: 36px; }
   .eventos .agenda { margin-top: 0; }
@@ -238,6 +242,7 @@
   }
 
   // CULTOS FIXOS (lista CULTOS no comum.js)
+  const linhaDoCulto = new Map(); // culto -> { li, info }, para ligar o banner da semana depois
   for (const c of CULTOS) {
     const li = document.createElement("li");
     const info = document.createElement("div");
@@ -249,11 +254,50 @@
       live.href = LINK_AO_VIVO;
       live.dataset.clique = "Agenda: Ao vivo " + c.nome;
       live.innerHTML = YOUTUBE_SVG + "Ao vivo no YouTube";
+      live.addEventListener("click", (ev) => ev.stopPropagation()); // não abre o "Saiba mais"
       info.append(live);
     }
     li.append(info, criar("span", "hora", horarioDoCulto(c)));
     document.getElementById("cultos").append(li);
+    linhaDoCulto.set(c, { li, info });
   }
+
+  // BANNER DOS CULTOS: a Mídia coloca pelo Portal da Mídia, um por data.
+  // Cada culto mostra o banner da sua PRÓXIMA data (o de hoje vale até o fim do dia).
+  const API_MIDIA = "https://script.google.com/macros/s/AKfycbxPpciahsKz8OoAl0oBLex7PUzx5WXROlrsT2Y7mIZPY3tG5WbMUXEbuTV-yZtGkRZrlA/exec";
+  function proximaData(c) {
+    const d = new Date(); d.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 40; i++, d.setDate(d.getDate() + 1)) {
+      if (c.dia === d.getDay() && (!c.primeiroDomingo || d.getDate() <= 7)) return new Date(d);
+    }
+    return null;
+  }
+  const isoDe = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  fetch(API_MIDIA)
+    .then((r) => r.json())
+    .then(({ cultos = [] }) => {
+      for (const [c, { li, info }] of linhaDoCulto) {
+        const d = proximaData(c);
+        const b = d && cultos.find((x) => x.data === isoDe(d) && normalizar(x.culto) === normalizar(c.nome));
+        if (!b) continue;
+        const e = {
+          dia: `${DIAS_SEMANA[d.getDay()]}, ${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`,
+          hora: `${c.hora}:${String(c.minuto).padStart(2, "0")}`,
+          evento: c.nome,
+          banner: linkDaImagem(b.banner),
+        };
+        info.append(criar("span", "ver", "Saiba mais ›"));
+        li.className = "tem-banner";
+        li.tabIndex = 0;
+        li.setAttribute("role", "button");
+        li.dataset.clique = "Saiba mais: " + c.nome;
+        li.addEventListener("click", () => abrirBanner(e));
+        li.addEventListener("keydown", (ev) => {
+          if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); abrirBanner(e); }
+        });
+      }
+    })
+    .catch(() => {}); // sem banner dos cultos, a agenda continua normal
 
   const lista = document.getElementById("agenda");
   const aviso = document.getElementById("aviso");

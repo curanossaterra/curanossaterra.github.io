@@ -50,6 +50,22 @@ function instalar() {
   teste.setTrashed(true);
 }
 
+// Leitura PÚBLICA (sem login), usada pela Agenda do Portal da Cura: só os banners dos cultos da semana
+// (data, culto e link da imagem, que já é público). Nada da equipe sai por aqui.
+function doGet() {
+  let resposta;
+  try {
+    const ontem = hojeISO(-1);
+    resposta = {
+      cultos: lerBannersCultos().linhas.filter((l) => l.data >= ontem && l.banner)
+        .map((l) => ({ data: l.data, culto: l.culto, banner: l.banner })),
+    };
+  } catch (err) {
+    resposta = { erro: err.message };
+  }
+  return ContentService.createTextOutput(JSON.stringify(resposta)).setMimeType(ContentService.MimeType.JSON);
+}
+
 function doPost(e) {
   let resposta;
   try {
@@ -108,6 +124,9 @@ function tudo(eu) {
       .filter((t) => (eu.coordenador || mesmoNome(t.para, eu.nome)) && (!t.feitaEm || t.feitaEm >= umMesAtras))
       .map((t) => ({ id: t.id, para: t.para, tarefa: t.tarefa, prazo: t.prazo, ocasiao: t.ocasiao, criadaPor: t.criadaPor, feitaEm: t.feitaEm })),
     eventos: comQuemEnviou(lerAgenda().eventos),
+    // banners dos cultos da semana (um por data), com quem enviou
+    bannersCultos: comQuemEnviou(lerBannersCultos().linhas.filter((l) => l.data >= hoje && l.banner))
+      .map((l) => ({ data: l.data, culto: l.culto, banner: l.banner, enviadoPor: l.enviadoPor, enviadoEm: l.enviadoEm })),
   };
 }
 
@@ -200,6 +219,7 @@ function lerAgenda() {
 // A célula Banner do evento pedido. Confere se a linha ainda é o mesmo evento
 // (a Ariane pode ter mexido na planilha enquanto a Mídia editava).
 function celulaDoBanner(pedido) {
+  if (pedido.culto) return celulaDoCulto(pedido); // culto da semana: fica na planilha da Mídia, não na da Ariane
   const aba = abaDaAgenda();
   const col = colunasDaAgenda(aba.getRange(1, 1, Math.min(10, aba.getLastRow()), aba.getLastColumn()).getDisplayValues());
   const linha = Number(pedido.linha);
@@ -241,6 +261,29 @@ function enviarBanner(pedido, eu) {
   const link = `https://drive.google.com/file/d/${arquivo.getId()}/view`;
   celula.setValue(link);
   registrarBanner(link, pedido, eu, "enviado");
+}
+
+// ---------------------------------------------------------------------------
+// BANNERS DOS CULTOS DA SEMANA (Culto de Oração, Culto da Família, Santa Ceia…): um por data.
+// Ficam na aba "Banners dos cultos" da planilha da Mídia; a Agenda do site lê pelo doGet (acima).
+function lerBannersCultos() {
+  const aba = abaDeDados("Banners dos cultos", ["Data", "Culto", "Banner"]);
+  const linhas = aba.getDataRange().getDisplayValues().slice(1)
+    .map((l, i) => ({ linha: i + 2, data: l[0].trim(), culto: l[1].trim(), banner: l[2].trim() }))
+    .filter((l) => l.data && l.culto);
+  return { aba, linhas };
+}
+
+// A célula Banner do culto naquela data (cria a linha na primeira vez).
+function celulaDoCulto(pedido) {
+  const data = String(pedido.data || "");
+  const culto = String(pedido.evento || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !culto) throw falha("Culto ou data inválidos. Atualize a página.");
+  const { aba, linhas } = lerBannersCultos();
+  const existente = linhas.find((l) => l.data === data && mesmoNome(l.culto, culto));
+  if (existente) return aba.getRange(existente.linha, 3);
+  aba.appendRow([data, culto, ""]);
+  return aba.getRange(aba.getLastRow(), 3);
 }
 
 // ---------------------------------------------------------------------------
